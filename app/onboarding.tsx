@@ -27,8 +27,8 @@ export default function Onboarding() {
 
   useEffect(() => {
     timeoutRef.current = setTimeout(() => {
-      if (!isAnimating) goToScreen('/(tabs)');
-    }, 8000);
+      if (!isAnimating) goToScreen('/login');
+    }, 9000);
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
