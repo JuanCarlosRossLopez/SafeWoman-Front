@@ -10,7 +10,7 @@ export default function login() {
             <SafeAreaView style={styles.section}>
                 <View style={styles.container}>
                     <View>
-                        <Image source={require('@/assets/images/safeWomanMorado.png')} style={styles.safeLogo} />
+                        <Image source={require('@/assets/images/iconoSW.png')} style={styles.safeLogo} />
                         <Text style={styles.logoText}>Safewoman</Text>
                     </View>
                     <View style={{ marginTop: 30 }}>

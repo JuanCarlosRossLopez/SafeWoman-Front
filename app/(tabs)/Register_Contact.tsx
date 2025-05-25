@@ -7,7 +7,7 @@ export default function Register_ContactScreen() {
         <View style={styles.titleContainer}>
         <View style={styles.leftHeader}>
     <Image
-      source={require('@/assets/images/safewoman.jpg')}
+      source={require('@/assets/images/iconoSW.png')}
       style={styles.logo}
     />
     <Text style={styles.titleText}>Safewoman</Text>
