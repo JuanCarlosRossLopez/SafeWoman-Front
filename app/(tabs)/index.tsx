@@ -1,75 +1,81 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { View, Text, Image, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+
 
 export default function HomeScreen() {
+    const contacts = [
+    { id: '1', name: 'Esposo', phone: '9986321457' },
+    { id: '2', name: 'Mamá', phone: '9986321457' },
+  ];  
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={styles.container}>
+
+      <View style={styles.header}>
+        <Image source={require('../../assets/images/safeWomanMorado.png')} style={styles.logo} />
+        <Text style={styles.title}>Safewoman</Text>
+        <Ionicons name="settings-outline" size={24} color="black" />
+      </View>
+
+
+      <View style={styles.userBox}>
+       <Image source={require('../../assets/images/usericon.png')} style={styles.avatar} />
+        <Text style={styles.greeting}>¡Hola!
+          <Text style={{ fontWeight: 'bold' }}> Usuario</Text>
+        </Text>
+      </View>
+
+      <View style={styles.contactsBox}>
+        <Text style={styles.sectionTitle}>Tus contactos de emergencia</Text>
+        {contacts.map(contact => (
+          <View key={contact.id} style={styles.contactItem}>
+            <Ionicons name="person-circle-outline" size={30} color="#aaa" />
+            <View style={styles.contactText}>
+              <Text style= {{fontSize:15,color:'#5F5F5F'}}>{contact.name}</Text>
+              <Text style={{ fontSize: 15 ,color:'#5F5F5F' }}>{contact.phone}</Text>
+            </View>
+            <Ionicons name="create-outline" size={20} color="#aa55cc" style={styles.iconBtn} />
+            <Ionicons name="close-circle-outline" size={20} color="red" style={styles.iconBtn} />
+          </View>
+        ))}
+        <TouchableOpacity style={styles.addButton}>
+          <Text style={styles.addButtonText}>Agregar contacto</Text>
+        </TouchableOpacity>
+      </View>
+
+     
+      <View style={styles.videosSection}>
+        <View style={styles.videoHeader}>
+          <Text style={styles.sectionTitle}>Videos</Text>
+          <Text style={{ color: '#666' }}>Ver más videos</Text>
+        </View>
+        <Image source={require('../../assets/images/mujerVideo.jpg')} style={styles.videoThumbnail} />
+        <Text style={styles.videoCaption}>Como reaccionar ante una situación de riesgo</Text>
+      </View>
+
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+  container: { flex: 1, backgroundColor: '#fff', padding: 16 }, 
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'},
+  logo: { width: 70, height: 70 },
+  title: { fontSize: 18, fontWeight: 'bold', color: '#B109C7' },
+  userBox: { backgroundColor: '#f3d9f9', flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 10, marginTop: 50 },
+  avatar: { width: 75, height: 75, marginLeft:30,marginRight: 30 },
+  greeting: { fontSize: 12 },
+  contactsBox: { marginTop: 45, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#B109C7' },
+  sectionTitle: { fontWeight: 'bold', marginBottom: 8, color:'#5F5F5F'},
+  contactItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 , borderRadius:10,borderWidth:0.5, borderColor:'#D6D6D6'},
+  contactText: { flex: 2, marginLeft: 8 },
+  iconBtn: { marginHorizontal: 4 },
+  addButton: { marginTop: 10, backgroundColor: '#B109C7', padding: 10, borderRadius: 8, alignItems: 'center' },
+  addButtonText: { color: '#fff', fontWeight: 'bold' },
+  videosSection: { marginTop: 30 },
+  videoHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  videoThumbnail: { width: '100%', height: 160, borderRadius: 10 },
+  videoCaption: { marginTop: 8, fontWeight: 'bold' },
+  footerNav: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#ccc' },
+  navItem: { alignItems: 'center' },
 });
