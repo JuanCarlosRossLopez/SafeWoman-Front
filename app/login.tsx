@@ -30,9 +30,11 @@ export default function login() {
                             placeholderTextColor="gray"
                             secureTextEntry={true}
                         />
+                        <Link href="/home" asChild>
                         <TouchableOpacity style={styles.button}>
                             <Text style={styles.text}>Iniciar sesión</Text>
                         </TouchableOpacity>
+                        </Link>
                         <View style={styles.textNavigate}>
                             <Text style={styles.textQuestion}>¿No tienes cuenta?</Text>
                             <Link href="/signUp" asChild>
