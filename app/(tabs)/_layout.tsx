@@ -1,37 +1,44 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+const ACTIVE_COLOR = '#B109C7';
+const INACTIVE_COLOR = 'black';
+
+interface TabBarIconProps {
+  name: React.ComponentProps<typeof Ionicons>['name'];
+  focused: boolean;
+  color: string;
+}
+
+// Custom TabBarIcon component to handle layout (icon above text)
+const TabBarIcon = ({ name, focused, color }: TabBarIconProps) => (
+  <View style={styles.tabIconContainer}>
+    <Ionicons name={name} size={24} color={color} />
+  </View>
+);
 
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
-      }}>
+        tabBarActiveTintColor: ACTIVE_COLOR,
+        tabBarInactiveTintColor: INACTIVE_COLOR,
+        tabBarStyle: {
+          backgroundColor: 'white',
+        },
+      }}
+    >
       <Tabs.Screen
-        name="index"
+        name="Home"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ focused, color }) => (
+            <TabBarIcon name={'home-outline'} focused={focused} color={color} />
+          ),
         }}
       />
 <Tabs.Screen
@@ -43,12 +50,39 @@ export default function TabLayout() {
 />
 
       <Tabs.Screen
-        name="explore"
+        name="Sos"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'SOS',
+          tabBarIcon: ({ focused, color }) => (
+            <TabBarIcon name={'radio-outline'} focused={focused} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="Map"
+        options={{
+          title: 'Mapa',
+          tabBarIcon: ({ focused, color }) => (
+            <TabBarIcon name={'map-outline'} focused={focused} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="Connect"
+        options={{
+          title: 'Conectar',
+          tabBarIcon: ({ focused, color }) => (
+            <TabBarIcon name={'watch-outline'} focused={focused} color={color} />
+          ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabIconContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
