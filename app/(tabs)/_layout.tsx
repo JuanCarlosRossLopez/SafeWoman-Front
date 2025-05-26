@@ -24,28 +24,47 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
-      }}>
+        tabBarActiveTintColor: ACTIVE_COLOR,
+        tabBarInactiveTintColor: INACTIVE_COLOR,
+        tabBarStyle: {
+          backgroundColor: 'white',
+        },
+      }}
+    >
       <Tabs.Screen
-        name="index"
+        name="Home"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ focused, color }) => (
+            <TabBarIcon name={'home-outline'} focused={focused} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="Sos"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'SOS',
+          tabBarIcon: ({ focused, color }) => (
+            <TabBarIcon name={'radio-outline'} focused={focused} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="Map"
+        options={{
+          title: 'Mapa',
+          tabBarIcon: ({ focused, color }) => (
+            <TabBarIcon name={'map-outline'} focused={focused} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="Connect"
+        options={{
+          title: 'Conectar',
+          tabBarIcon: ({ focused, color }) => (
+            <TabBarIcon name={'watch-outline'} focused={focused} color={color} />
+          ),
         }}
       />
     </Tabs>
