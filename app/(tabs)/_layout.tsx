@@ -19,6 +19,7 @@ const TabBarIcon = ({ name, focused, color }: TabBarIconProps) => (
   </View>
 );
 
+
 export default function TabLayout() {
   return (
     <Tabs
@@ -40,6 +41,14 @@ export default function TabLayout() {
           ),
         }}
       />
+<Tabs.Screen
+  name="map"
+  options={{
+    title: 'Map',
+    tabBarIcon: ({ color }) => <IconSymbol size={28} name="map.fill" color={color} />,
+  }}
+/>
+
       <Tabs.Screen
         name="Sos"
         options={{
