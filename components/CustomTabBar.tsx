@@ -8,10 +8,10 @@ export default function CustomTabBar() {
   const pathname = usePathname();
 
   const tabs = [
-    { name: 'Home', icon: 'home-outline', route: '/(tabs)/home' },
+    { name: 'home', icon: 'home-outline', route: '/(tabs)/home' },
     { name: 'SOS', icon: 'radio-outline', route: '/(tabs)/sos' },
     { name: 'Mapa', icon: 'map-outline', route: '/(tabs)/mapa' },
-    { name: 'Conectar', icon: 'people-outline', route: '/(tabs)/conectar' },
+    { name: 'Conectar', icon: 'people-outline', route: '/(tabs)/' },
   ];
 
   return (
