@@ -1,7 +1,9 @@
 import { View, Text, TextInput, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function Register_ContactScreen() {
+    const router = useRouter();
   return (
     <View style={styles.container}>
         <View style={styles.titleContainer}>
@@ -16,7 +18,7 @@ export default function Register_ContactScreen() {
   <Ionicons name="settings-outline" size={28} color="black" />
 </View>
 
-      <TouchableOpacity style={styles.backButton}>
+      <TouchableOpacity  style={styles.backButton} onPress={() => router.replace('/home')}>
         <Ionicons name="arrow-back" size={24} color="#A020F0" />
       </TouchableOpacity>
 

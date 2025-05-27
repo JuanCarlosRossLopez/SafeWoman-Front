@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, Image, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
-
-
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 
 export default function HomeScreen() {
+  const router = useRouter();
     const contacts = [
     { id: '1', name: 'Esposo', phone: '9986321457' },
     { id: '2', name: 'Mamá', phone: '9986321457' },
@@ -17,7 +17,7 @@ export default function HomeScreen() {
          source={require('@/assets/images/iconoSW.png')}
          style={styles.logo}
        />
-       <Text style={styles.titleText}>Safewoman</Text>
+       <Text style={styles.title}>Safewoman</Text>
      </View>
    
      <Ionicons name="settings-outline" size={28} color="black" />
@@ -44,7 +44,7 @@ export default function HomeScreen() {
             <Ionicons name="close-circle-outline" size={20} color="red" style={styles.iconBtn} />
           </View>
         ))}
-        <TouchableOpacity style={styles.addButton}>
+        <TouchableOpacity style={styles.addButton} onPress={() => router.replace('/Register_Contact')}>
           <Text style={styles.addButtonText}>Agregar contacto</Text>
         </TouchableOpacity>
       </View>

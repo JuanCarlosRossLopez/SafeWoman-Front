@@ -12,7 +12,6 @@ interface TabBarIconProps {
   color: string;
 }
 
-// Custom TabBarIcon component to handle layout (icon above text)
 const TabBarIcon = ({ name, focused, color }: TabBarIconProps) => (
   <View style={styles.tabIconContainer}>
     <Ionicons name={name} size={24} color={color} />
@@ -29,11 +28,12 @@ export default function TabLayout() {
         tabBarInactiveTintColor: INACTIVE_COLOR,
         tabBarStyle: {
           backgroundColor: 'white',
+          borderTopWidth: 0
         },
       }}
     >
       <Tabs.Screen
-        name="Home"
+        name="home"
         options={{
           title: 'Home',
           tabBarIcon: ({ focused, color }) => (
@@ -51,7 +51,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="Map"
+        name="map"
         options={{
           title: 'Mapa',
           tabBarIcon: ({ focused, color }) => (
