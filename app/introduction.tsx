@@ -3,7 +3,7 @@ import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function introduction() {
+export default function Introduction() {
 
     return (
         <>
@@ -22,7 +22,7 @@ export default function introduction() {
                                 <Text style={styles.textL}>Iniciar sesión</Text>
                         </TouchableOpacity>
                         </Link>
-                        <Link href="/signUp" asChild>
+                        <Link href="/register" asChild>
                         <TouchableOpacity style={styles.buttonR}>  
                                 <Text style={styles.textR}>Registrarse</Text>
                         </TouchableOpacity>
