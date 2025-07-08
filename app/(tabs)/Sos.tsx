@@ -1,7 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Header from '@/layouts/Header';
 
 interface RunningAnimation {
   animation: Animated.CompositeAnimation;
@@ -9,7 +8,6 @@ interface RunningAnimation {
 }
 
 const SOSScreen = () => {
-  const router = useRouter();
   const numWaves = 2;
   const waveAnimatedValues = useRef([...Array(numWaves)].map(() => new Animated.Value(0))).current;
 
@@ -48,23 +46,10 @@ const SOSScreen = () => {
     };
   }, [waveAnimatedValues]);
 
-  const handleAddContacts = () => {
-    router.push('/Register_Contact');
-  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.titleContainer}>
-        <View style={styles.leftHeader}>
-          <Image
-            source={require('@/assets/images/iconoSW.png')}
-            style={styles.logo}
-          />
-          <Text style={styles.titleText}>Safewoman</Text>
-        </View>
-
-        <Ionicons name="settings-outline" size={28} color="black" />
-      </View>
+        <Header/>
       <View style={styles.sosButtonContainer}>
         <View style={styles.buttonAreaWrapper}>
           {[...Array(numWaves).keys()].map(index => {
@@ -97,9 +82,6 @@ const SOSScreen = () => {
         </View>
       </View>
       <Text style={styles.sosHelperText}>Presiona el botón para enviar una alerta</Text>
-      <TouchableOpacity style={styles.addButton} onPress={handleAddContacts}>
-        <Text style={styles.addButtonText}>Agregar personas</Text>
-      </TouchableOpacity>
     </View>
   );
 };
@@ -107,7 +89,7 @@ const SOSScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    padding: 16,
     backgroundColor: '#fff',
   },
   titleContainer: {
@@ -165,7 +147,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   sosHelperText: {
-    marginBottom: 20,
+    marginBottom: 30,
     fontSize: 16,
     color: 'black',
     textAlign: 'center',

@@ -1,20 +1,11 @@
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import Header from '@/layouts/Header';
 
 export default function ConnectScreen() {
   return (
     <View style={styles.container}>
-      <View style={styles.titleContainer}>
-        <View style={styles.leftHeader}>
-          <Image
-            source={require('@/assets/images/iconoSW.png')}
-            style={styles.logo}
-          />
-          <Text style={styles.titleText}>Safewoman</Text>
-        </View>
-        <Ionicons name="settings-outline" size={28} color="black" />
-      </View>
-
+        <Header/>
       <View style={styles.headerRow}>
         <Text style={styles.sectionTitle}>Conecta tu pulsera</Text>
         <TouchableOpacity style={styles.bluetoothButton}>
@@ -56,7 +47,7 @@ export default function ConnectScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    padding: 16,
     backgroundColor: '#fff',
   },
   titleContainer: {
