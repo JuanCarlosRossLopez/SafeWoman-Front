@@ -1,41 +1,36 @@
 import React, { useState } from 'react';
-import {  ScrollView, TouchableOpacity, Text, SafeAreaView, Alert } from 'react-native';
+import {
+  ScrollView,
+  TouchableOpacity,
+  Text,
+  SafeAreaView,
+  StyleSheet,
+  Animated,
+  Easing
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { getAuth } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/services/firebase-config';
 import { useUserStore } from '@/store/userStore';
 import { ProfileHeader } from '@/components/Profile/ProfileHeader';
 import { AvatarSection } from '@/components/Profile/AvatarSection';
 import { ProfileInfo } from '@/components/Profile/ProfileInfo';
 import { LogoutModal } from '@/components/Profile/LogoutModal';
+import { Ionicons } from '@expo/vector-icons';
 
 const ProfileView = () => {
   const router = useRouter();
-  const { name, email, phone, emergencyContacts, setUser, clearUser } = useUserStore();
+  const { clearUser } = useUserStore();
   const [isEditing, setIsEditing] = useState(false);
-  const [tempName, setTempName] = useState(name || '');
-  const [tempPhone, setTempPhone] = useState(phone || '');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [fadeAnim] = useState(new Animated.Value(0));
 
-  const handleSave = async () => {
-    try {
-      const user = getAuth().currentUser;
-      if (!user) return Alert.alert('Error', 'No se encontró el usuario autenticado');
-
-      setUser({ name: tempName, phone: tempPhone });
-      await updateDoc(doc(db, 'users', user.uid), {
-        name: tempName,
-        phone: tempPhone,
-      });
-
-      setIsEditing(false);
-      Alert.alert('Perfil actualizado', 'Tus cambios se han guardado correctamente');
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'No se pudieron guardar los cambios');
-    }
-  };
+  React.useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      easing: Easing.ease,
+      useNativeDriver: true
+    }).start();
+  });
 
   const handleLogout = () => {
     clearUser();
@@ -43,29 +38,81 @@ const ProfileView = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#A020F0' }}>
-      <ScrollView style={{ flex: 1, backgroundColor: '#f8f9fa' }} contentContainerStyle={{ paddingBottom: 40 }}>
-        <ProfileHeader isEditing={isEditing} toggleEdit={() => setIsEditing(!isEditing)} />
-        <AvatarSection />
-        <ProfileInfo
-          isEditing={isEditing}
-          name={name}
-          email={email}
-          phone={phone}
-          tempName={tempName}
-          tempPhone={tempPhone}
-          setTempName={setTempName}
-          setTempPhone={setTempPhone}
-          emergencyContacts={emergencyContacts}
-          handleSave={handleSave}
-        />
-        <TouchableOpacity style={{ backgroundColor: '#fff', borderColor: '#ff4444', borderWidth: 1, borderRadius: 10, padding: 15, alignItems: 'center', marginHorizontal: 20, marginTop: 30 }} onPress={() => setShowLogoutModal(true)}>
-          <Text style={{ color: '#ff4444', fontSize: 16, fontWeight: 'bold' }}>Cerrar sesión</Text>
-        </TouchableOpacity>
-        <LogoutModal visible={showLogoutModal} onClose={() => setShowLogoutModal(false)} onConfirm={handleLogout} />
-      </ScrollView>
+    <SafeAreaView style={styles.container}>
+      <Animated.View style={{ opacity: fadeAnim, flex: 1 }}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <ProfileHeader
+            isEditing={isEditing}
+            toggleEdit={() => setIsEditing(!isEditing)}
+          />
+          
+          <AvatarSection />
+          
+          <ProfileInfo
+            isEditing={isEditing}
+            setIsEditing={setIsEditing}
+          />
+          
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={() => setShowLogoutModal(true)}
+          >
+            <Ionicons name="log-out-outline" size={20} color="#FF4444" />
+            <Text style={styles.logoutText}>Cerrar sesión</Text>
+          </TouchableOpacity>
+          
+          <LogoutModal
+            visible={showLogoutModal}
+            onClose={() => setShowLogoutModal(false)}
+            onConfirm={handleLogout}
+          />
+        </ScrollView>
+      </Animated.View>
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#B109C7',
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#FDF2FF',
+  },
+  scrollContent: {
+    paddingBottom: 40
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFDDDD',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    marginHorizontal: 20,
+    marginTop: 30,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  logoutText: {
+    color: '#FF4444',
+    fontSize: 16,
+    fontWeight: 'bold'
+  }
+});
 
 export default ProfileView;

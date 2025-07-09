@@ -1,24 +1,93 @@
-import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+} from 'react-native';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+  doc,
+} from 'firebase/firestore';
+import { db } from '@/services/firebase-config';
+import { useUserStore } from '@/store/userStore';
 
 export const ProfileInfo = ({
   isEditing,
-  name,
-  email,
-  phone,
-  tempName,
-  tempPhone,
-  setTempName,
-  setTempPhone,
-  emergencyContacts,
-  handleSave
-}: any) => {
+  setIsEditing,
+}: {
+  isEditing: boolean;
+  setIsEditing: (value: boolean) => void;
+}) => {
+  const {
+    uid,
+    name,
+    email,
+    phone,
+    emergencyContacts,
+    setUser,
+  } = useUserStore((state) => state);
+
+  const [tempName, setTempName] = useState(name || '');
+  const [tempPhone, setTempPhone] = useState(phone || '');
+
+  const handleSave = async () => {
+    try {
+      if (!tempName || !tempPhone) {
+        Alert.alert('Error', 'Por favor completa todos los campos.');
+        return;
+      }
+
+      const usersRef = collection(db, 'users');
+      const phoneQuery = query(usersRef, where('phone', '==', tempPhone));
+      const querySnapshot = await getDocs(phoneQuery);
+
+      const phoneInUse = querySnapshot.docs.some((docu) => docu.id !== uid);
+
+      if (phoneInUse) {
+        Alert.alert(
+          'Error',
+          'El número de teléfono ya está en uso por otro usuario.'
+        );
+        return;
+      }
+
+      const userRef = doc(db, 'users', uid!);
+      await updateDoc(userRef, {
+        name: tempName,
+        phone: tempPhone,
+      });
+
+      setUser({
+        name: tempName,
+        phone: tempPhone,
+      });
+
+      Alert.alert('¡Éxito!', 'Perfil actualizado correctamente.');
+      setIsEditing(false); 
+
+    } catch (error) {
+      console.error('Error al actualizar perfil:', error);
+      Alert.alert('Error', 'Ocurrió un error al guardar los cambios.');
+    }
+  };
+
   return (
     <View style={styles.profileCard}>
       <Field label="Nombre">
         {isEditing ? (
-          <TextInput style={styles.inputField} value={tempName} onChangeText={setTempName} placeholder="Tu nombre" />
+          <TextInput
+            style={styles.inputField}
+            value={tempName}
+            onChangeText={setTempName}
+            placeholder="Tu nombre"
+          />
         ) : (
           <Text style={styles.fieldValue}>{name || 'No especificado'}</Text>
         )}
@@ -48,11 +117,6 @@ export const ProfileInfo = ({
             <View key={index} style={styles.contactItem}>
               <Text style={styles.contactName}>{contact.name}</Text>
               <Text style={styles.contactPhone}>{contact.phone}</Text>
-              {isEditing && (
-                <TouchableOpacity style={styles.deleteContactButton}>
-                  <MaterialIcons name="delete" size={20} color="#ff4444" />
-                </TouchableOpacity>
-              )}
             </View>
           ))
         ) : (
@@ -86,7 +150,12 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   fieldContainer: { marginBottom: 20 },
-  fieldLabel: { fontSize: 14, color: '#666', marginBottom: 5, fontWeight: '500' },
+  fieldLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 5,
+    fontWeight: '500',
+  },
   fieldValue: {
     fontSize: 16,
     color: '#333',
@@ -110,16 +179,33 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  contactName: { fontSize: 15, fontWeight: '600', color: '#333', flex: 1 },
-  contactPhone: { fontSize: 14, color: '#666', marginRight: 10 },
-  deleteContactButton: { padding: 5 },
-  noContactsText: { fontSize: 14, color: '#999', fontStyle: 'italic', marginTop: 5 },
+  contactName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+    flex: 1,
+  },
+  contactPhone: {
+    fontSize: 14,
+    color: '#666',
+    marginRight: 10,
+  },
+  noContactsText: {
+    fontSize: 14,
+    color: '#999',
+    fontStyle: 'italic',
+    marginTop: 5,
+  },
   saveButton: {
-    backgroundColor: '#A020F0',
+    backgroundColor: '#B109C7',
     borderRadius: 10,
     padding: 15,
     alignItems: 'center',
     marginTop: 20,
   },
-  saveButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });

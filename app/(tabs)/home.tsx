@@ -1,4 +1,16 @@
-import {View,Text,Alert,FlatList,TouchableOpacity,StyleSheet,LayoutAnimation,UIManager,Platform,SafeAreaView,ScrollView,} from "react-native";
+import {
+  View,
+  Text,
+  Alert,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  LayoutAnimation,
+  UIManager,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+} from "react-native";
 import { useEffect, useState } from "react";
 import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { db, auth } from "@/services/firebase-config";
@@ -91,50 +103,69 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-  <ScrollView contentContainerStyle={styles.scrollContainer}>
-    <Header />
-    <UserHeader name={name} />
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <Header />
+        <UserHeader name={name} />
 
-    <View style={styles.contactsBox}>
-      <Text style={styles.sectionTitle}>Tus contactos de emergencia</Text>
+        <View style={styles.contactsBox}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Tus contactos de emergencia</Text>
+            {emergencyContacts.length > 0 && (
+              <Text style={styles.countText}>
+                ({emergencyContacts.length} en total)
+              </Text>
+            )}
+          </View>
+          {loading ? (
+            <Text style={styles.loadingText}>Cargando contactos...</Text>
+          ) : (
+            <>
+              <FlatList
+                data={emergencyContacts.slice(0, 3)}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <ContactItem
+                    item={item}
+                    onEdit={() =>
+                      router.push({
+                        pathname: "/Register_Contact",
+                        params: { id: item.id },
+                      })
+                    }
+                    onDelete={() => handleDeleteContact(item.id)}
+                  />
+                )}
+                ListEmptyComponent={<EmptyState />}
+                scrollEnabled={false}
+                nestedScrollEnabled={true}
+              />
 
-      {loading ? (
-        <Text style={styles.loadingText}>Cargando contactos...</Text>
-      ) : (
-        <FlatList
-          data={emergencyContacts}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ContactItem
-              item={item}
-              onEdit={() =>
-                router.push({
-                  pathname: "/Register_Contact",
-                  params: { id: item.id },
-                })
-              }
-              onDelete={() => handleDeleteContact(item.id)}
-            />
+              {emergencyContacts.length >= 0 && (
+                <TouchableOpacity
+                  style={styles.viewAllButton}
+                  onPress={() => router.push("/AllContacts")}
+                >
+                  <Text style={styles.viewAllText}>
+                    Ver todos los contactos
+                  </Text>
+                  <Ionicons name="arrow-forward" size={18} color="#B109C7" />
+                </TouchableOpacity>
+              )}
+            </>
           )}
-          ListEmptyComponent={<EmptyState />}
-          ListFooterComponent={
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => router.push("/Register_Contact")}
-            >
-              <Ionicons name="add-circle-outline" size={22} color="#fff" />
-              <Text style={styles.addButtonText}>Agregar contacto</Text>
-            </TouchableOpacity>
-          }
-          scrollEnabled={false}
-          nestedScrollEnabled={true}
-        />
-        )}
-    </View>
-    <VideosBlock />
-  </ScrollView>
-</SafeAreaView>
 
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => router.push("/Register_Contact")}
+          >
+            <Ionicons name="add-circle-outline" size={22} color="#fff" />
+            <Text style={styles.addButtonText}>Agregar contacto</Text>
+          </TouchableOpacity>
+        </View>
+
+        <VideosBlock />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -188,5 +219,29 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  viewAllButton: {
+    marginTop: 12,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  viewAllText: {
+    color: "#B109C7",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  countText: {
+    color: "#B109C7",
+    fontSize: 14,
+    fontWeight: "500",
   },
 });

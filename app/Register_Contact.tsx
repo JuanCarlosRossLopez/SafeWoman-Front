@@ -1,19 +1,32 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ScrollView, Image } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  ScrollView,
+  Image,
+  Animated,
+  Easing,
+  Platform
+} from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { doc, setDoc, collection, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/services/firebase-config';
 import { Ionicons } from '@expo/vector-icons';
-import Header from '@/layouts/Header';
 import { useUserStore } from '@/store/userStore';
 
 export default function RegisterContact() {
   const router = useRouter();
-  const { id } = useLocalSearchParams(); 
+  const { id } = useLocalSearchParams();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const { emergencyContacts, setEmergencyContacts } = useUserStore();
+  const scaleValue = useState(new Animated.Value(0))[0];
 
   useEffect(() => {
     if (id) {
@@ -32,12 +45,21 @@ export default function RegisterContact() {
             Alert.alert('Error', 'Contacto no encontrado');
             router.back();
           }
-        } catch (error) {
+        } catch {
           Alert.alert('Error', 'No se pudo cargar el contacto');
         }
       })();
     }
   }, [id]);
+
+  useEffect(() => {
+    Animated.timing(scaleValue, {
+      toValue: 1,
+      duration: 400,
+      easing: Easing.elastic(1),
+      useNativeDriver: true,
+    }).start();
+  },);
 
   const handleSubmit = async () => {
     if (!name.trim() || !phone.trim()) {
@@ -51,7 +73,6 @@ export default function RegisterContact() {
       const user = auth.currentUser;
       if (!user) {
         Alert.alert('Error', 'Usuario no autenticado');
-        setLoading(false);
         return;
       }
 
@@ -86,7 +107,7 @@ export default function RegisterContact() {
       }
 
       router.back();
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Ocurrió un error al guardar el contacto');
     } finally {
       setLoading(false);
@@ -94,58 +115,62 @@ export default function RegisterContact() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 30 }}>
-      <Header />
-
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#B109C7" />
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.title}>
-          {id ? 'Editar Contacto' : 'Agregar Contacto'}
-        </Text>
-        <View style={{ width: 24 }} />
+        <Text style={styles.title}>{id ? 'Editar Contacto' : 'Agregar Contacto'}</Text>
+        <View style={{ width: 32 }} />
       </View>
 
-      <Image
-        source={require('@/assets/images/perfil.png')}
-        style={styles.profileImage}
-      />
-
-      <View style={styles.form}>
-        <Text style={styles.label}>Nombre del contacto</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Ej: María González"
-          placeholderTextColor="#999"
-          value={name}
-          onChangeText={setName}
+      <Animated.View
+        style={{
+          transform: [{ scale: scaleValue }],
+          opacity: scaleValue,
+        }}
+      >
+        <Image
+          source={require('@/assets/images/perfil.png')}
+          style={styles.profileImage}
         />
 
-        <Text style={styles.label}>Número de teléfono</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Ej: 9981234567"
-          placeholderTextColor="#999"
-          keyboardType="phone-pad"
-          value={phone}
-          onChangeText={setPhone}
-        />
+        <View style={styles.form}>
+          <Text style={styles.label}>Nombre del contacto</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ej: María González"
+            placeholderTextColor="#aaa"
+            value={name}
+            onChangeText={setName}
+          />
 
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>
-              {id ? 'Actualizar Contacto' : 'Agregar Contacto'}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
+          <Text style={styles.label}>Número de teléfono</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ej: 9981234567"
+            placeholderTextColor="#aaa"
+            keyboardType="phone-pad"
+            value={phone}
+            onChangeText={setPhone}
+          />
+
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>
+                {id ? 'Actualizar Contacto' : 'Agregar Contacto'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
     </ScrollView>
   );
 }
@@ -153,54 +178,72 @@ export default function RegisterContact() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
+    backgroundColor: '#FDF2FF',
   },
   header: {
+    backgroundColor: '#B109C7',
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 32,
+    justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'ios' ? 50 : 40,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 4,
   },
   title: {
+    color: '#fff',
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#B109C7',
   },
-  form: {
-    flex: 1,
+  backButton: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 20,
   },
   profileImage: {
     width: 100,
     height: 100,
     alignSelf: 'center',
-    marginVertical: 20,
-    tintColor: 'gray',
+    marginVertical: 24,
+    marginTop: 30,
+    tintColor: '#B109C7',
+  },
+  form: {
+    marginTop: 10,
+    padding: 20,
   },
   label: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
-    color: '#5F5F5F',
-    marginBottom: 8,
+    color: '#4A4A4A',
+    marginBottom: 6,
   },
   input: {
     height: 50,
+    backgroundColor: '#fff',
+    borderColor: '#F0C8FF',
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 16,
-    marginBottom: 24,
     fontSize: 16,
-    backgroundColor: '#fafafa',
+    marginBottom: 20,
   },
   button: {
     backgroundColor: '#B109C7',
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 15,
+    marginTop: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
+    shadowColor: '#B109C7',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   buttonDisabled: {
     opacity: 0.7,
