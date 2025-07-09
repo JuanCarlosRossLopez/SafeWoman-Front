@@ -31,6 +31,8 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
         <Stack.Screen name="ProfileView" options={{ headerShown: false }} />
+        <Stack.Screen name='Videos' options={{ headerShown: false }} />
+        <Stack.Screen name='VideoPlayer' options={{ headerShown: false }} />
         <Stack.Screen name="register" options={{ headerShown: false }} />
         <Stack.Screen name='AllContacts' options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />

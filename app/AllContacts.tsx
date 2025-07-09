@@ -11,10 +11,11 @@ import {
 import { collection, deleteDoc, doc, getDocs } from "firebase/firestore";
 import { db, auth } from "@/services/firebase-config";
 import { useUserStore } from "@/store/userStore";
-import Header from "@/components/Contacts/Header";
 import ContactList from "@/components/Contacts/ListContacts";
 import AddContactButton from "@/components/Contacts/AddContactButton";
 import { useRouter } from "expo-router";
+import CustomHeader from "@/components/CustomHeader";
+
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -83,7 +84,7 @@ const AllContacts = () => {
 
   return (
     <View style={styles.container}>
-      <Header />
+       <CustomHeader title="Mis contactos" />
       {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#B109C7" />
