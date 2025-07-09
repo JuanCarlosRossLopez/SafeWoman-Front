@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,9 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/services/firebase-config';
 import { useUserStore } from '@/store/userStore';
+import { useForm, Controller } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import { contactSchema } from '@/validators/contactSchema';
 
 export const ProfileInfo = ({
   isEditing,
@@ -30,15 +33,27 @@ export const ProfileInfo = ({
     name,
     email,
     phone,
-    emergencyContacts,
     setUser,
   } = useUserStore((state) => state);
 
-  const [tempName, setTempName] = useState(name || '');
-  const [tempPhone, setTempPhone] = useState(phone || '');
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+    getValues,
+  } = useForm({
+    resolver: yupResolver(contactSchema),
+    defaultValues: {
+      name: name || '',
+      phone: phone || '',
+    },
+  });
 
   const handleSave = async () => {
+    const { name: tempName, phone: tempPhone } = getValues();
+
     try {
+      // Validar campos localmente
       if (!tempName || !tempPhone) {
         Alert.alert('Error', 'Por favor completa todos los campos.');
         return;
@@ -51,10 +66,7 @@ export const ProfileInfo = ({
       const phoneInUse = querySnapshot.docs.some((docu) => docu.id !== uid);
 
       if (phoneInUse) {
-        Alert.alert(
-          'Error',
-          'El número de teléfono ya está en uso por otro usuario.'
-        );
+        Alert.alert('Error', 'El número de teléfono ya está en uso por otro usuario.');
         return;
       }
 
@@ -70,8 +82,7 @@ export const ProfileInfo = ({
       });
 
       Alert.alert('¡Éxito!', 'Perfil actualizado correctamente.');
-      setIsEditing(false); 
-
+      setIsEditing(false);
     } catch (error) {
       console.error('Error al actualizar perfil:', error);
       Alert.alert('Error', 'Ocurrió un error al guardar los cambios.');
@@ -82,12 +93,21 @@ export const ProfileInfo = ({
     <View style={styles.profileCard}>
       <Field label="Nombre">
         {isEditing ? (
-          <TextInput
-            style={styles.inputField}
-            value={tempName}
-            onChangeText={setTempName}
-            placeholder="Tu nombre"
-          />
+          <View>
+            <Controller
+              control={control}
+              name="name"
+              render={({ field: { onChange, value } }) => (
+                <TextInput
+                  style={styles.inputField}
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Tu nombre"
+                />
+              )}
+            />
+            {errors.name && <Text style={styles.errorText}>{errors.name.message}</Text>}
+          </View>
         ) : (
           <Text style={styles.fieldValue}>{name || 'No especificado'}</Text>
         )}
@@ -99,33 +119,29 @@ export const ProfileInfo = ({
 
       <Field label="Teléfono">
         {isEditing ? (
-          <TextInput
-            style={styles.inputField}
-            value={tempPhone}
-            onChangeText={setTempPhone}
-            placeholder="Tu teléfono"
-            keyboardType="phone-pad"
-          />
+          <View>
+            <Controller
+              control={control}
+              name="phone"
+              render={({ field: { onChange, value } }) => (
+                <TextInput
+                  style={styles.inputField}
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Tu teléfono"
+                  keyboardType="phone-pad"
+                />
+              )}
+            />
+            {errors.phone && <Text style={styles.errorText}>{errors.phone.message}</Text>}
+          </View>
         ) : (
           <Text style={styles.fieldValue}>{phone || 'No especificado'}</Text>
         )}
       </Field>
 
-      <Field label="Contactos de emergencia">
-        {emergencyContacts.length > 0 ? (
-          emergencyContacts.map((contact: any, index: number) => (
-            <View key={index} style={styles.contactItem}>
-              <Text style={styles.contactName}>{contact.name}</Text>
-              <Text style={styles.contactPhone}>{contact.phone}</Text>
-            </View>
-          ))
-        ) : (
-          <Text style={styles.noContactsText}>No hay contactos agregados</Text>
-        )}
-      </Field>
-
       {isEditing && (
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+        <TouchableOpacity style={styles.saveButton} onPress={handleSubmit(handleSave)}>
           <Text style={styles.saveButtonText}>Guardar cambios</Text>
         </TouchableOpacity>
       )}
@@ -172,29 +188,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#A020F0',
   },
-  contactItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  contactName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#333',
-    flex: 1,
-  },
-  contactPhone: {
-    fontSize: 14,
-    color: '#666',
-    marginRight: 10,
-  },
-  noContactsText: {
-    fontSize: 14,
-    color: '#999',
-    fontStyle: 'italic',
-    marginTop: 5,
+  errorText: {
+    fontSize: 12,
+    color: 'red',
+    marginTop: 4,
   },
   saveButton: {
     backgroundColor: '#B109C7',

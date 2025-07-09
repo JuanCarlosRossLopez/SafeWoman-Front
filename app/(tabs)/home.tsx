@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 16,
     color: "#333",
-    fontSize: 18,
+    fontSize: 17,
   },
   loadingText: {
     textAlign: "center",
@@ -242,6 +242,7 @@ const styles = StyleSheet.create({
   countText: {
     color: "#B109C7",
     fontSize: 14,
+    paddingLeft: 5,
     fontWeight: "500",
   },
 });

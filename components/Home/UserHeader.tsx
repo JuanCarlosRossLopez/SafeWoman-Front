@@ -2,7 +2,11 @@ import { View, Text, Image, StyleSheet, Dimensions } from "react-native";
 
 const { width } = Dimensions.get("window");
 
-export default function UserHeader({ name }) {
+type Props = {
+  name?: string;
+};
+
+export default function UserHeader({ name }: Props) {
   return (
     <View style={styles.userBox}>
       <Image source={require("../../assets/images/usericon.png")} style={styles.avatar} />
@@ -36,7 +40,6 @@ const styles = StyleSheet.create({
   },
   welcomeText: {
     fontSize: 14,
-    color: "#555",
   },
   userName: {
     fontSize: 20,

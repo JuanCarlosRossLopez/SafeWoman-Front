@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
   },
   titleText: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: '500',
     color: '#A020F0',
   },
   dropdownOverlay: {

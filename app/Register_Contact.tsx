@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,22 +11,36 @@ import {
   Image,
   Animated,
   Easing,
-  Platform
+  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { doc, setDoc, collection, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/services/firebase-config';
 import { Ionicons } from '@expo/vector-icons';
 import { useUserStore } from '@/store/userStore';
+import { useForm, Controller } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import { contactSchema } from '@/validators/contactSchema';
 
 export default function RegisterContact() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [loading, setLoading] = useState(false);
   const { emergencyContacts, setEmergencyContacts } = useUserStore();
   const scaleValue = useState(new Animated.Value(0))[0];
+  const [loading, setLoading] = useState(false);
+
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm({
+    resolver: yupResolver(contactSchema),
+    defaultValues: {
+      name: '',
+      phone: '',
+    },
+  });
 
   useEffect(() => {
     if (id) {
@@ -39,8 +53,8 @@ export default function RegisterContact() {
           const docSnap = await getDoc(contactRef);
           if (docSnap.exists()) {
             const data = docSnap.data();
-            setName(data.name);
-            setPhone(data.phone);
+            setValue('name', data.name);
+            setValue('phone', data.phone);
           } else {
             Alert.alert('Error', 'Contacto no encontrado');
             router.back();
@@ -59,20 +73,24 @@ export default function RegisterContact() {
       easing: Easing.elastic(1),
       useNativeDriver: true,
     }).start();
-  },);
+  }, []);
 
-  const handleSubmit = async () => {
-    if (!name.trim() || !phone.trim()) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
-      return;
-    }
-
+  const onSubmit = async ({ name, phone }: { name: string; phone: string }) => {
     setLoading(true);
 
     try {
       const user = auth.currentUser;
       if (!user) {
         Alert.alert('Error', 'Usuario no autenticado');
+        return;
+      }
+
+      const isPhoneInUse = emergencyContacts.some(
+        (c) => c.phone === phone && c.id !== id
+      );
+
+      if (isPhoneInUse) {
+        Alert.alert('Error', 'Este número ya está en uso. Intenta con otro.');
         return;
       }
 
@@ -116,7 +134,6 @@ export default function RegisterContact() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -138,27 +155,53 @@ export default function RegisterContact() {
 
         <View style={styles.form}>
           <Text style={styles.label}>Nombre del contacto</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ej: María González"
-            placeholderTextColor="#aaa"
-            value={name}
-            onChangeText={setName}
-          />
+          <View style={styles.inputGroup}>
+            <Controller
+              control={control}
+              name="name"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ej: María González"
+                    placeholderTextColor="#aaa"
+                    onChangeText={onChange}
+                    value={value}
+                  />
+                  {errors.name && (
+                    <Text style={styles.errorText}>{errors.name.message}</Text>
+                  )}
+                </>
+              )}
+            />
+          </View>
 
           <Text style={styles.label}>Número de teléfono</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Ej: 9981234567"
-            placeholderTextColor="#aaa"
-            keyboardType="phone-pad"
-            value={phone}
-            onChangeText={setPhone}
-          />
+          <View style={styles.inputGroup}>
+            <Controller
+              control={control}
+              name="phone"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ej: 9981234567"
+                    placeholderTextColor="#aaa"
+                    keyboardType="phone-pad"
+                    onChangeText={onChange}
+                    value={value}
+                  />
+                  {errors.phone && (
+                    <Text style={styles.errorText}>{errors.phone.message}</Text>
+                  )}
+                </>
+              )}
+            />
+          </View>
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleSubmit}
+            onPress={handleSubmit(onSubmit)}
             disabled={loading}
           >
             {loading ? (
@@ -222,6 +265,9 @@ const styles = StyleSheet.create({
     color: '#4A4A4A',
     marginBottom: 6,
   },
+  inputGroup: {
+    marginBottom: 20,
+  },
   input: {
     height: 50,
     backgroundColor: '#fff',
@@ -230,7 +276,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 16,
-    marginBottom: 20,
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 12,
+    marginTop: 4,
   },
   button: {
     backgroundColor: '#B109C7',
