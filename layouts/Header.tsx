@@ -6,25 +6,56 @@ import {
   StyleSheet,
   TouchableOpacity,
   TouchableWithoutFeedback,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useUserStore } from '@/store/userStore';
+import { auth } from '@/services/firebase-config';
+import { signOut } from 'firebase/auth';
 
 const Header = () => {
   const router = useRouter();
   const { clearUser } = useUserStore();
   const [dropdownVisible, setDropdownVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogout = () => {
-    clearUser();
+  const handleLogout = async () => {
     setDropdownVisible(false);
-    router.replace('/login');
+    
+    Alert.alert(
+      'Cerrar sesión',
+      '¿Estás seguro de que quieres salir?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Cerrar sesión',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await signOut(auth);
+              clearUser();
+              router.replace('/login');
+            } catch (error) {
+              console.error('Error al cerrar sesión:', error);
+              Alert.alert('Error', 'No se pudo cerrar sesión. Intenta de nuevo.');
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const goToProfile = () => {
     setDropdownVisible(false);
-    router.push('/ProfileView'); 
+    router.push('/ProfileView');
   };
 
   return (
@@ -38,8 +69,15 @@ const Header = () => {
           <Text style={styles.titleText}>Safewoman</Text>
         </View>
 
-        <TouchableOpacity onPress={() => setDropdownVisible(!dropdownVisible)}>
-          <Ionicons name="settings-outline" size={28} color="black" />
+        <TouchableOpacity 
+          onPress={() => setDropdownVisible(!dropdownVisible)}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#A020F0" />
+          ) : (
+            <Ionicons name="settings-outline" size={28} color="black" />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -49,7 +87,6 @@ const Header = () => {
             <View style={styles.dropdown}>
               <Text style={styles.dropdownTitle}>Mi cuenta</Text>
               
-              {/* Botón directo para ver perfil */}
               <TouchableOpacity 
                 style={styles.viewProfileButton}
                 onPress={goToProfile}
@@ -59,8 +96,16 @@ const Header = () => {
                 <Ionicons name="chevron-forward" size={20} color="#A020F0" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
+              <TouchableOpacity 
+                style={styles.logoutButton} 
+                onPress={handleLogout}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
