@@ -1,7 +1,6 @@
 import {
   View,
   Text,
-  Alert,
   FlatList,
   TouchableOpacity,
   StyleSheet,
@@ -22,6 +21,7 @@ import UserHeader from "@/components/Home/UserHeader";
 import EmptyState from "@/components/Home/EmptyState";
 import VideosBlock from "@/components/Home/VideosBlock";
 import { Ionicons } from "@expo/vector-icons";
+import { CustomModal } from "@/components/ui/CustomModal";
 
 if (
   Platform.OS === "android" &&
@@ -34,6 +34,17 @@ export default function HomeScreen() {
   const router = useRouter();
   const { name, emergencyContacts, setEmergencyContacts } = useUserStore();
   const [loading, setLoading] = useState(true);
+
+  // Estados para los modales
+  const [showModal, setShowModal] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const [feedbackModal, setFeedbackModal] = useState({
+    visible: false,
+    type: "success" as "success" | "error",
+    title: "",
+    message: "",
+  });
 
   useEffect(() => {
     const fetchContacts = async () => {
@@ -63,42 +74,42 @@ export default function HomeScreen() {
     fetchContacts();
   }, [setEmergencyContacts]);
 
-  const handleDeleteContact = async (contactId: string) => {
-    Alert.alert("¿Eliminar contacto?", "Esta acción no se puede deshacer", [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Eliminar",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            const user = auth.currentUser;
-            if (!user) throw new Error("Usuario no autenticado");
+  // Abrir modal para confirmar eliminación
+  const confirmDeleteContact = (id: string) => {
+    setSelectedId(id);
+    setShowModal(true);
+  };
 
-            await deleteDoc(
-              doc(db, "users", user.uid, "emergencyContacts", contactId)
-            );
+  // Confirmación recibida, eliminar contacto
+  const handleDeleteConfirmed = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user || !selectedId) return;
 
-            LayoutAnimation.configureNext(
-              LayoutAnimation.Presets.easeInEaseOut
-            );
+      await deleteDoc(doc(db, "users", user.uid, "emergencyContacts", selectedId));
 
-            const updated = emergencyContacts.filter((c) => c.id !== contactId);
-            setEmergencyContacts(updated);
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      const updated = emergencyContacts.filter((c) => c.id !== selectedId);
+      setEmergencyContacts(updated);
 
-            Alert.alert(
-              "Contacto eliminado",
-              "El contacto fue eliminado correctamente"
-            );
-          } catch (err: any) {
-            console.error("Error real al eliminar:", err);
-            Alert.alert(
-              "Error",
-              "No se pudo eliminar el contacto. Intenta de nuevo."
-            );
-          }
-        },
-      },
-    ]);
+      setFeedbackModal({
+        visible: true,
+        type: "success",
+        title: "Contacto eliminado",
+        message: "El contacto fue eliminado correctamente.",
+      });
+    } catch (err) {
+      console.error("Error real al eliminar:", err);
+      setFeedbackModal({
+        visible: true,
+        type: "error",
+        title: "Error",
+        message: "No se pudo eliminar el contacto. Intenta de nuevo.",
+      });
+    } finally {
+      setShowModal(false);
+      setSelectedId(null);
+    }
   };
 
   return (
@@ -132,7 +143,7 @@ export default function HomeScreen() {
                         params: { id: item.id },
                       })
                     }
-                    onDelete={() => handleDeleteContact(item.id)}
+                    onDelete={() => confirmDeleteContact(item.id)}
                   />
                 )}
                 ListEmptyComponent={<EmptyState />}
@@ -145,9 +156,7 @@ export default function HomeScreen() {
                   style={styles.viewAllButton}
                   onPress={() => router.push("/AllContacts")}
                 >
-                  <Text style={styles.viewAllText}>
-                    Ver todos los contactos
-                  </Text>
+                  <Text style={styles.viewAllText}>Ver todos los contactos</Text>
                   <Ionicons name="arrow-forward" size={18} color="#B109C7" />
                 </TouchableOpacity>
               )}
@@ -165,6 +174,32 @@ export default function HomeScreen() {
 
         <VideosBlock />
       </ScrollView>
+
+      {/* Modal de Confirmación */}
+      <CustomModal
+        visible={showModal}
+        type="confirm"
+        title="¿Eliminar contacto?"
+        message="Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        onConfirm={handleDeleteConfirmed}
+        onCancel={() => setShowModal(false)}
+      />
+
+      {/* Modal de Éxito o Error con autocierre */}
+      <CustomModal
+        visible={feedbackModal.visible}
+        type={feedbackModal.type}
+        title={feedbackModal.title}
+        message={feedbackModal.message}
+        // Cuando el modal se cierre solo, ocultar el modal
+        onAutoClose={() =>
+          setFeedbackModal((prev) => ({ ...prev, visible: false }))
+        }
+        // No botones para estos tipos (success, error)
+        onlyConfirm={true}
+      />
     </SafeAreaView>
   );
 }

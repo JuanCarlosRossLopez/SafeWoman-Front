@@ -1,8 +1,10 @@
 import React, {useState} from 'react';
-import {  Image, StyleSheet, Animated, Easing } from 'react-native';
+import {  Image, StyleSheet, Animated, Easing, Text } from 'react-native';
+import { useUserStore } from '@/store/userStore';
 
 export const AvatarSection = () => {
   const [scaleAnim] = useState(new Animated.Value(0));
+  const { name, email } = useUserStore();
 
   React.useEffect(() => {
     Animated.timing(scaleAnim, {
@@ -19,6 +21,8 @@ export const AvatarSection = () => {
         source={require('@/assets/images/perfil.png')} 
         style={styles.avatar} 
       />
+       <Text style={styles.nameText}>{name || 'Nombre no disponible'}</Text>
+      <Text style={styles.emailText}>{email || 'Correo no disponible'}</Text>
     </Animated.View>
   );
 };
@@ -43,5 +47,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  nameText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 15,
+  },
+  emailText: {
+    fontSize: 14,
+    color: '#5b5452',
+    marginTop: 4,
   },
 });

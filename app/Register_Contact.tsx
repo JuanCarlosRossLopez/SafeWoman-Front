@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'; 
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   ScrollView,
   Image,
@@ -21,6 +20,7 @@ import { useUserStore } from '@/store/userStore';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { contactSchema } from '@/validators/contactSchema';
+import { CustomModal } from '@/components/ui/CustomModal';
 
 export default function RegisterContact() {
   const router = useRouter();
@@ -28,6 +28,14 @@ export default function RegisterContact() {
   const { emergencyContacts, setEmergencyContacts } = useUserStore();
   const scaleValue = useState(new Animated.Value(0))[0];
   const [loading, setLoading] = useState(false);
+
+  // Estado para el modal de feedback
+  const [feedbackModal, setFeedbackModal] = useState({
+    visible: false,
+    type: 'success' as 'success' | 'error',
+    title: '',
+    message: '',
+  });
 
   const {
     control,
@@ -56,11 +64,21 @@ export default function RegisterContact() {
             setValue('name', data.name);
             setValue('phone', data.phone);
           } else {
-            Alert.alert('Error', 'Contacto no encontrado');
-            router.back();
+            setFeedbackModal({
+              visible: true,
+              type: 'error',
+              title: 'Error',
+              message: 'Contacto no encontrado',
+            });
+            setTimeout(() => router.back(), 1500);
           }
         } catch {
-          Alert.alert('Error', 'No se pudo cargar el contacto');
+          setFeedbackModal({
+            visible: true,
+            type: 'error',
+            title: 'Error',
+            message: 'No se pudo cargar el contacto',
+          });
         }
       })();
     }
@@ -75,13 +93,29 @@ export default function RegisterContact() {
     }).start();
   }, []);
 
+  // Función para autocerrar modal éxito/error después de 2.5s
+  useEffect(() => {
+    if (feedbackModal.visible && feedbackModal.type === 'success') {
+      const timer = setTimeout(() => {
+        setFeedbackModal(prev => ({ ...prev, visible: false }));
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [feedbackModal]);
+
   const onSubmit = async ({ name, phone }: { name: string; phone: string }) => {
     setLoading(true);
 
     try {
       const user = auth.currentUser;
       if (!user) {
-        Alert.alert('Error', 'Usuario no autenticado');
+        setFeedbackModal({
+          visible: true,
+          type: 'error',
+          title: 'Error',
+          message: 'Usuario no autenticado',
+        });
+        setLoading(false);
         return;
       }
 
@@ -90,7 +124,13 @@ export default function RegisterContact() {
       );
 
       if (isPhoneInUse) {
-        Alert.alert('Error', 'Este número ya está en uso. Intenta con otro.');
+        setFeedbackModal({
+          visible: true,
+          type: 'error',
+          title: 'Error',
+          message: 'Este número ya está en uso. Intenta con otro.',
+        });
+        setLoading(false);
         return;
       }
 
@@ -101,11 +141,18 @@ export default function RegisterContact() {
           updatedAt: new Date(),
         });
 
-        setEmergencyContacts(emergencyContacts.map(c =>
-          c.id === id ? { ...c, name, phone } : c
-        ));
+        setEmergencyContacts(
+          emergencyContacts.map((c) =>
+            c.id === id ? { ...c, name, phone } : c
+          )
+        );
 
-        Alert.alert('Éxito', 'Contacto actualizado correctamente');
+        setFeedbackModal({
+          visible: true,
+          type: 'success',
+          title: 'Éxito',
+          message: 'Contacto actualizado correctamente',
+        });
       } else {
         const newContactRef = doc(collection(db, 'users', user.uid, 'emergencyContacts'));
         await setDoc(newContactRef, {
@@ -114,107 +161,132 @@ export default function RegisterContact() {
           createdAt: new Date(),
         });
 
-        setEmergencyContacts([...emergencyContacts, {
-          id: newContactRef.id,
-          name,
-          phone,
-          createdAt: new Date(),
-        }]);
+        setEmergencyContacts([
+          ...emergencyContacts,
+          {
+            id: newContactRef.id,
+            name,
+            phone,
+            createdAt: new Date(),
+          },
+        ]);
 
-        Alert.alert('Éxito', 'Contacto agregado correctamente');
+        setFeedbackModal({
+          visible: true,
+          type: 'success',
+          title: 'Éxito',
+          message: 'Contacto agregado correctamente',
+        });
       }
 
-      router.back();
+      setTimeout(() => router.back(), 1500);
     } catch {
-      Alert.alert('Error', 'Ocurrió un error al guardar el contacto');
+      setFeedbackModal({
+        visible: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Ocurrió un error al guardar el contacto',
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.title}>{id ? 'Editar Contacto' : 'Agregar Contacto'}</Text>
-        <View style={{ width: 32 }} />
-      </View>
-
-      <Animated.View
-        style={{
-          transform: [{ scale: scaleValue }],
-          opacity: scaleValue,
-        }}
-      >
-        <Image
-          source={require('@/assets/images/perfil.png')}
-          style={styles.profileImage}
-        />
-
-        <View style={styles.form}>
-          <Text style={styles.label}>Nombre del contacto</Text>
-          <View style={styles.inputGroup}>
-            <Controller
-              control={control}
-              name="name"
-              render={({ field: { onChange, value } }) => (
-                <>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Ej: María González"
-                    placeholderTextColor="#aaa"
-                    onChangeText={onChange}
-                    value={value}
-                  />
-                  {errors.name && (
-                    <Text style={styles.errorText}>{errors.name.message}</Text>
-                  )}
-                </>
-              )}
-            />
-          </View>
-
-          <Text style={styles.label}>Número de teléfono</Text>
-          <View style={styles.inputGroup}>
-            <Controller
-              control={control}
-              name="phone"
-              render={({ field: { onChange, value } }) => (
-                <>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Ej: 9981234567"
-                    placeholderTextColor="#aaa"
-                    keyboardType="phone-pad"
-                    onChangeText={onChange}
-                    value={value}
-                  />
-                  {errors.phone && (
-                    <Text style={styles.errorText}>{errors.phone.message}</Text>
-                  )}
-                </>
-              )}
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleSubmit(onSubmit)}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>
-                {id ? 'Actualizar Contacto' : 'Agregar Contacto'}
-              </Text>
-            )}
+    <>
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
+          <Text style={styles.title}>{id ? 'Editar Contacto' : 'Agregar Contacto'}</Text>
+          <View style={{ width: 32 }} />
         </View>
-      </Animated.View>
-    </ScrollView>
+
+        <Animated.View
+          style={{
+            transform: [{ scale: scaleValue }],
+            opacity: scaleValue,
+          }}
+        >
+          <Image
+            source={require('@/assets/images/perfil.png')}
+            style={styles.profileImage}
+          />
+
+          <View style={styles.form}>
+            <Text style={styles.label}>Nombre del contacto</Text>
+            <View style={styles.inputGroup}>
+              <Controller
+                control={control}
+                name="name"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Ej: María González"
+                      placeholderTextColor="#aaa"
+                      onChangeText={onChange}
+                      value={value}
+                    />
+                    {errors.name && (
+                      <Text style={styles.errorText}>{errors.name.message}</Text>
+                    )}
+                  </>
+                )}
+              />
+            </View>
+
+            <Text style={styles.label}>Número de teléfono</Text>
+            <View style={styles.inputGroup}>
+              <Controller
+                control={control}
+                name="phone"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Ej: 9981234567"
+                      placeholderTextColor="#aaa"
+                      keyboardType="phone-pad"
+                      onChangeText={onChange}
+                      value={value}
+                    />
+                    {errors.phone && (
+                      <Text style={styles.errorText}>{errors.phone.message}</Text>
+                    )}
+                  </>
+                )}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleSubmit(onSubmit)}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>
+                  {id ? 'Actualizar Contacto' : 'Agregar Contacto'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </ScrollView>
+
+      <CustomModal
+        visible={feedbackModal.visible}
+        type={feedbackModal.type}
+        title={feedbackModal.title}
+        message={feedbackModal.message}
+        onCancel={() => setFeedbackModal(prev => ({ ...prev, visible: false }))}
+        onlyConfirm={feedbackModal.type === 'success'} // success autocierra, error muestra botón
+        onAutoClose={() => setFeedbackModal(prev => ({ ...prev, visible: false }))}
+      />
+    </>
   );
 }
 
