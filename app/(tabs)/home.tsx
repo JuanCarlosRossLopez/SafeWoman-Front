@@ -193,11 +193,9 @@ export default function HomeScreen() {
         type={feedbackModal.type}
         title={feedbackModal.title}
         message={feedbackModal.message}
-        // Cuando el modal se cierre solo, ocultar el modal
         onAutoClose={() =>
           setFeedbackModal((prev) => ({ ...prev, visible: false }))
         }
-        // No botones para estos tipos (success, error)
         onlyConfirm={true}
       />
     </SafeAreaView>

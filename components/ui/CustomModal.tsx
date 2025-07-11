@@ -53,13 +53,10 @@ export const CustomModal = ({
         useNativeDriver: true,
       }).start();
 
-      // Si el modal es tipo success o error, cerrarlo automáticamente después de 2.5s
       if (type === "success" || type === "error") {
         const timer = setTimeout(() => {
           if (onAutoClose) onAutoClose();
-        }, 2500);
-
-        // Limpiar timer si cambia visibility o desmonta
+        }, 2000);
         return () => clearTimeout(timer);
       }
     } else {
@@ -69,7 +66,6 @@ export const CustomModal = ({
 
   const icon = iconData[type];
 
-  // Mostrar botones solo si es confirm y no onlyConfirm = true, o si forced with onlyConfirm
   const showButtons =
     type === "confirm" && !onlyConfirm;
 

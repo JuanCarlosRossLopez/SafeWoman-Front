@@ -128,7 +128,7 @@ export default function RegisterContact() {
           visible: true,
           type: 'error',
           title: 'Error',
-          message: 'Este número ya está en uso. Intenta con otro.',
+          message: 'Ya existe un contacto registrado con este número. Intenta con otro.',
         });
         setLoading(false);
         return;
