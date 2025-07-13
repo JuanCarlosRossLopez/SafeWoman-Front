@@ -1,7 +1,414 @@
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, FlatList } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { BleManager, Device, Characteristic } from 'react-native-ble-plx';
 
-export default function ConnectScreen() {
+// Interfaces para TypeScript
+interface AlertData {
+  type: string;
+  device: string;
+  timestamp: number;
+  battery: number;
+  location: string;
+}
+
+interface AvailableDevice {
+  id: string;
+  name: string;
+  rssi: number;
+  device: Device;
+}
+
+interface PairedDevice {
+  id: string;
+  name: string;
+  connected: boolean;
+}
+
+// UUIDs del ESP32 (deben coincidir con los del código Arduino)
+const SERVICE_UUID = "12345678-1234-1234-1234-123456789abc";
+const ALERT_CHAR_UUID = "12345678-1234-1234-1234-123456789abd";
+const STATUS_CHAR_UUID = "12345678-1234-1234-1234-123456789abe";
+
+const ConnectScreen: React.FC = () => {
+  const [bleManager] = useState<BleManager>(new BleManager());
+  const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
+  const [availableDevices, setAvailableDevices] = useState<AvailableDevice[]>([]);
+  const [pairedDevices, setPairedDevices] = useState<PairedDevice[]>([]);
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [connectionStatus, setConnectionStatus] = useState<string>('Desconectado');
+
+  useEffect(() => {
+    initializeBLE();
+    loadPairedDevices();
+
+    return () => {
+      bleManager.destroy();
+    };
+  }, []);
+
+  const initializeBLE = async (): Promise<void> => {
+    try {
+      console.log('🔧 Inicializando BLE...');
+      
+      // Verificar estado del Bluetooth
+      const state = await bleManager.state();
+      console.log('📡 Estado del Bluetooth:', state);
+      
+      if (state === 'PoweredOn') {
+        console.log('✅ Bluetooth está listo');
+      } else {
+        console.log('⚠️ Bluetooth no está disponible:', state);
+        Alert.alert(
+          'Bluetooth requerido', 
+          `Estado actual: ${state}\nPor favor activa el Bluetooth y reinicia la aplicación`
+        );
+      }
+      
+      // Verificar permisos (solo para debug)
+      console.log('🔐 Verificando permisos...');
+      
+    } catch (error) {
+      console.error('❌ Error inicializando BLE:', error);
+      Alert.alert('Error', 'Error inicializando Bluetooth: ' + error);
+    }
+  };
+
+  const loadPairedDevices = async (): Promise<void> => {
+    // Simulamos algunos dispositivos emparejados previamente
+    setPairedDevices([
+      { id: '1', name: 'Pulsera SafeWoman 1', connected: false },
+      { id: '2', name: 'Pulsera SafeWoman 2', connected: false }
+    ]);
+  };
+
+  const startScanning = async (): Promise<void> => {
+    if (isScanning) return;
+    
+    setIsScanning(true);
+    setAvailableDevices([]);
+    
+    console.log('🔍 Iniciando escaneo...');
+    
+    try {
+      bleManager.startDeviceScan(null, null, (error, device) => {
+        if (error) {
+          console.error('❌ Error escaneando:', error);
+          setIsScanning(false);
+          return;
+        }
+
+        if (device && device.name) {
+          console.log(`📱 Dispositivo encontrado: ${device.name} - ID: ${device.id} - RSSI: ${device.rssi}`);
+          
+          // Mostrar TODOS los dispositivos BLE primero para debug
+          console.log(`🔧 Debug - Servicios: ${device.serviceUUIDs?.join(', ') || 'Sin servicios'}`);
+          
+          // Buscar dispositivos SmartWatch (más permisivo)
+          if (device.name === 'SmartWatch') {
+            console.log(`✅ SmartWatch encontrado: ${device.name}`);
+            
+            setAvailableDevices(prev => {
+              const exists = prev.find(d => d.id === device.id);
+              if (!exists) {
+                return [...prev, {
+                  id: device.id,
+                  name: device.name || 'SmartWatch',
+                  rssi: device.rssi || 0,
+                  device: device
+                }];
+              }
+              return prev;
+            });
+          } else {
+            // Log de otros dispositivos para debug
+            console.log(`📋 Otro dispositivo: ${device.name}`);
+          }
+        } else if (device) {
+          // Dispositivos sin nombre
+          console.log(`📱 Dispositivo sin nombre encontrado - ID: ${device.id} - RSSI: ${device.rssi}`);
+        }
+      });
+
+      // Detener escaneo después de 15 segundos (más tiempo)
+      setTimeout(() => {
+        bleManager.stopDeviceScan();
+        setIsScanning(false);
+        console.log('🛑 Escaneo detenido automáticamente después de 15 segundos');
+      }, 15000);
+
+    } catch (error) {
+      console.error('❌ Error iniciando escaneo:', error);
+      setIsScanning(false);
+      Alert.alert('Error', 'No se pudo iniciar el escaneo Bluetooth');
+    }
+  };
+
+  const connectToDevice = async (deviceToConnect: AvailableDevice): Promise<void> => {
+    try {
+      setConnectionStatus('Conectando...');
+      console.log(`🔗 Conectando a: ${deviceToConnect.name}`);
+      
+      // Conectar al dispositivo
+      const device = await bleManager.connectToDevice(deviceToConnect.id);
+      console.log('✅ Dispositivo conectado');
+      
+      // Descubrir servicios
+      await device.discoverAllServicesAndCharacteristics();
+      console.log('✅ Servicios descubiertos');
+      
+      setConnectedDevice(device);
+      setConnectionStatus('Conectado');
+      
+      // Suscribirse a notificaciones de alerta
+      await subscribeToAlerts(device);
+      
+      // Suscribirse a notificaciones de estado
+      await subscribeToStatus(device);
+      
+      Alert.alert('✅ Conexión exitosa', `Conectado a ${device.name || 'SmartWatch'}`);
+      
+      // Actualizar dispositivos emparejados
+      updatePairedDevices(device);
+      
+    } catch (error) {
+      console.error('❌ Error conectando:', error);
+      setConnectionStatus('Error de conexión');
+      Alert.alert('❌ Error', 'No se pudo conectar al dispositivo');
+    }
+  };
+
+  const subscribeToAlerts = async (device: Device): Promise<void> => {
+    try {
+      console.log('🔔 Suscribiendo a alertas...');
+      
+      device.monitorCharacteristicForService(
+        SERVICE_UUID,
+        ALERT_CHAR_UUID,
+        (error, characteristic: Characteristic | null) => {
+          if (error) {
+            console.error('❌ Error monitoreando alertas:', error);
+            return;
+          }
+          
+          if (characteristic?.value) {
+            try {
+              // Decodificar Base64
+              const decodedValue = Buffer.from(characteristic.value, 'base64').toString('utf-8');
+              console.log('📨 Mensaje recibido:', decodedValue);
+              
+              // Verificar si es una alerta de emergencia
+              if (decodedValue === "EMERGENCY_ALERT") {
+                console.log('🚨 Alerta de emergencia detectada!');
+                handleEmergencyAlert();
+              } else {
+                // Intentar parsear como JSON (por compatibilidad)
+                try {
+                  const alertData: AlertData = JSON.parse(decodedValue);
+                  console.log('🚨 Alerta JSON recibida:', alertData);
+                  handleEmergencyAlert(alertData);
+                } catch (parseError) {
+                  // Si no es JSON, tratar como alerta simple
+                  console.log('📢 Mensaje simple recibido:', decodedValue);
+                  handleEmergencyAlert();
+                }
+              }
+            } catch (decodeError) {
+              console.error('❌ Error decodificando mensaje:', decodeError);
+              // Mostrar alerta genérica
+              handleEmergencyAlert();
+            }
+          }
+        }
+      );
+      
+      console.log('✅ Suscrito a alertas');
+    } catch (error) {
+      console.error('❌ Error suscribiendo a alertas:', error);
+    }
+  };
+
+  const subscribeToStatus = async (device: Device): Promise<void> => {
+    try {
+      console.log('📊 Suscribiendo a estado...');
+      
+      device.monitorCharacteristicForService(
+        SERVICE_UUID,
+        STATUS_CHAR_UUID,
+        (error, characteristic: Characteristic | null) => {
+          if (error) {
+            console.error('❌ Error monitoreando estado:', error);
+            return;
+          }
+          
+          if (characteristic?.value) {
+            try {
+              const decodedStatus = Buffer.from(characteristic.value, 'base64').toString('utf-8');
+              console.log('📱 Estado recibido:', decodedStatus);
+              
+              // Actualizar estado de conexión
+              switch (decodedStatus) {
+                case 'connected':
+                  setConnectionStatus('Conectado');
+                  break;
+                case 'alert_sent':
+                  setConnectionStatus('Alerta enviada');
+                  break;
+                case 'heartbeat':
+                  setConnectionStatus('Conectado - Activo');
+                  break;
+                default:
+                  setConnectionStatus(decodedStatus);
+              }
+            } catch (parseError) {
+              console.error('❌ Error parseando estado:', parseError);
+            }
+          }
+        }
+      );
+      
+      console.log('✅ Suscrito a estado');
+    } catch (error) {
+      console.error('❌ Error suscribiendo a estado:', error);
+    }
+  };
+
+  const handleEmergencyAlert = (alertData?: AlertData): void => {
+    console.log('🚨 Procesando alerta de emergencia');
+    
+    // Obtener información actual
+    const currentTime = new Date().toLocaleString();
+    const deviceName = connectedDevice?.name || 'SmartWatch';
+    
+    // Mostrar alerta principal
+    Alert.alert(
+      '🚨 ALERTA DE EMERGENCIA',
+      `¡Se ha activado una alerta de emergencia!
+
+📱 Dispositivo: ${deviceName}
+⏰ Hora: ${currentTime}
+${alertData ? `🔋 Batería: ${alertData.battery}%` : ''}
+
+¿Estás bien?`,
+      [
+        { 
+          text: 'Falsa alarma', 
+          style: 'cancel',
+          onPress: () => {
+            console.log('✅ Alerta cancelada por el usuario');
+            Alert.alert('✅ Cancelado', 'Alerta marcada como falsa alarma');
+          }
+        },
+        { 
+          text: 'Necesito ayuda', 
+          style: 'destructive',
+          onPress: () => {
+            console.log('🆘 Usuario confirmó emergencia');
+            processEmergency(deviceName, currentTime);
+          }
+        }
+      ],
+      { cancelable: false }
+    );
+  };
+
+  const processEmergency = (deviceName: string, timestamp: string): void => {
+    // Aquí la app procesará la emergencia
+    console.log('🚨 Procesando emergencia confirmada');
+    
+    Alert.alert(
+      '🆘 Emergencia Activada',
+      `Protocolo de emergencia iniciado:
+
+📞 Notificando contactos de emergencia
+📍 Enviando ubicación actual  
+🚨 Activando servicios de emergencia
+
+Dispositivo: ${deviceName}
+Hora: ${timestamp}
+
+En una versión completa, aquí se ejecutarían todas las acciones de emergencia configuradas.`,
+      [
+        {
+          text: 'Entendido',
+          onPress: () => {
+            console.log('✅ Usuario confirmó recepción del protocolo');
+          }
+        }
+      ]
+    );
+  };
+
+  const updatePairedDevices = (device: Device): void => {
+    setPairedDevices(prev => {
+      const exists = prev.find(d => d.id === device.id);
+      if (!exists) {
+        return [...prev, {
+          id: device.id,
+          name: device.name || 'SmartWatch',
+          connected: true
+        }];
+      }
+      return prev.map(d => 
+        d.id === device.id ? { ...d, connected: true } : d
+      );
+    });
+  };
+
+  const disconnectDevice = async (): Promise<void> => {
+    if (connectedDevice) {
+      try {
+        console.log('🔌 Desconectando dispositivo...');
+        await connectedDevice.cancelConnection();
+        setConnectedDevice(null);
+        setConnectionStatus('Desconectado');
+        
+        // Actualizar estado de dispositivos emparejados
+        setPairedDevices(prev => 
+          prev.map(d => ({ ...d, connected: false }))
+        );
+        
+        console.log('✅ Dispositivo desconectado');
+      } catch (error) {
+        console.error('❌ Error desconectando:', error);
+      }
+    }
+  };
+
+  const renderAvailableDevice = ({ item }: { item: AvailableDevice }) => (
+    <TouchableOpacity 
+      style={styles.braceletCard}
+      onPress={() => connectToDevice(item)}
+    >
+      <MaterialCommunityIcons name="watch-variant" size={24} color="#444" />
+      <View style={styles.deviceInfo}>
+        <Text style={styles.braceletText}>{item.name}</Text>
+        <Text style={styles.rssiText}>Señal: {item.rssi} dBm</Text>
+      </View>
+      <Ionicons name="add-circle-outline" size={20} color="#6c4ee3" />
+    </TouchableOpacity>
+  );
+
+  const renderPairedDevice = ({ item }: { item: PairedDevice }) => (
+    <TouchableOpacity 
+      style={[styles.braceletCard, item.connected && styles.connectedCard]}
+      onPress={item.connected ? disconnectDevice : () => {}}
+    >
+      <MaterialCommunityIcons name="watch-variant" size={24} color="#444" />
+      <View style={styles.deviceInfo}>
+        <Text style={styles.braceletText}>{item.name}</Text>
+        <Text style={styles.statusText}>
+          {item.connected ? connectionStatus : 'Desconectado'}
+        </Text>
+      </View>
+      <Ionicons 
+        name={item.connected ? "checkmark-circle" : "settings-outline"} 
+        size={20} 
+        color={item.connected ? "#4CAF50" : "#444"} 
+      />
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.titleContainer}>
@@ -12,46 +419,132 @@ export default function ConnectScreen() {
           />
           <Text style={styles.titleText}>Safewoman</Text>
         </View>
-        <Ionicons name="settings-outline" size={28} color="black" />
+        <TouchableOpacity onPress={disconnectDevice}>
+          <Ionicons name="settings-outline" size={28} color="black" />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.headerRow}>
         <Text style={styles.sectionTitle}>Conecta tu pulsera</Text>
-        <TouchableOpacity style={styles.bluetoothButton}>
-          <Ionicons name="bluetooth" size={24} color="white" />
+        <TouchableOpacity 
+          style={[
+            styles.bluetoothButton, 
+            connectedDevice && styles.connectedButton,
+            isScanning && styles.scanningButton
+          ]}
+          onPress={startScanning}
+          disabled={isScanning}
+        >
+          <Ionicons 
+            name={isScanning ? "sync" : connectedDevice ? "bluetooth" : "bluetooth-outline"} 
+            size={24} 
+            color="white" 
+          />
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.subTitle}>Pulseras emparejadas</Text>
-      <View style={styles.braceletCard}>
-        <MaterialCommunityIcons name="watch-variant" size={24} color="#444" />
-        <Text style={styles.braceletText}>Pulsera 1</Text>
-        <Ionicons name="settings-outline" size={20} color="#444" style={{ marginLeft: 'auto' }} />
+      {/* Estado de conexión */}
+      {connectedDevice && (
+        <View style={styles.statusContainer}>
+          <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+          <Text style={styles.statusLabel}>Estado: {connectionStatus}</Text>
+        </View>
+      )}
+
+      {/* Información de debug mejorada */}
+      <View style={styles.debugInfo}>
+        <Text style={styles.debugText}>
+          🔍 Estado: {isScanning ? 'Escaneando...' : 'Listo'}
+        </Text>
+        <Text style={styles.debugText}>
+          📱 Conectado: {connectedDevice ? `Sí (${connectedDevice.name})` : 'No'}
+        </Text>
+        <Text style={styles.debugText}>
+          📊 Dispositivos encontrados: {availableDevices.length}
+        </Text>
+        <Text style={styles.debugText}>
+          🕒 Última búsqueda: {isScanning ? 'En progreso...' : 'Completada'}
+        </Text>
       </View>
-      <View style={styles.braceletCard}>
-        <MaterialCommunityIcons name="watch-variant" size={24} color="#444" />
-        <Text style={styles.braceletText}>Pulsera 2</Text>
-        <Ionicons name="settings-outline" size={20} color="#444" style={{ marginLeft: 'auto' }} />
+
+      <View style={styles.sectionContainer}>
+        <Text style={styles.subTitle}>Pulseras emparejadas</Text>
+        {pairedDevices.length > 0 ? (
+          <FlatList
+            data={pairedDevices}
+            renderItem={renderPairedDevice}
+            keyExtractor={(item: PairedDevice) => item.id}
+            style={styles.deviceList}
+            scrollEnabled={false}
+          />
+        ) : (
+          <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons name="watch-variant-off" size={48} color="#ccc" />
+            <Text style={styles.emptyText}>No hay pulseras emparejadas</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.divider} />
 
-      <View style={styles.availableHeader}>
-        <Text style={styles.subTitle}>Pulseras disponibles</Text>
-        <TouchableOpacity>
-          <Text style={styles.searchLink}>Buscar pulseras</Text>
-        </TouchableOpacity>
-      </View>
+      <View style={styles.sectionContainer}>
+        <View style={styles.availableHeader}>
+          <Text style={styles.subTitle}>Pulseras disponibles</Text>
+          <TouchableOpacity onPress={startScanning} disabled={isScanning}>
+            <Text style={[styles.searchLink, isScanning && styles.searchLinkDisabled]}>
+              {isScanning ? 'Buscando...' : 'Buscar pulseras'}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-      <View style={styles.braceletCard}>
-        <MaterialCommunityIcons name="watch-variant" size={24} color="#444" />
-        <Text style={styles.braceletText}>Pulsera 3</Text>
+        {availableDevices.length > 0 ? (
+          <FlatList
+            data={availableDevices}
+            renderItem={renderAvailableDevice}
+            keyExtractor={(item: AvailableDevice) => item.id}
+            style={styles.deviceList}
+            scrollEnabled={false}
+          />
+        ) : (
+          <View style={styles.emptyContainer}>
+            {isScanning ? (
+              <>
+                <Ionicons name="bluetooth-outline" size={48} color="#6c4ee3" />
+                <Text style={styles.emptyText}>Buscando pulseras...</Text>
+                <Text style={styles.emptySubText}>
+                  Asegúrate de que tu ESP32 esté encendido
+                </Text>
+              </>
+            ) : (
+              <>
+                <MaterialCommunityIcons name="bluetooth-off" size={48} color="#ccc" />
+                <Text style={styles.emptyText}>
+                  No se encontraron pulseras disponibles
+                </Text>
+                <Text style={styles.emptySubText}>
+                  Presiona "Buscar pulseras" para escanear
+                </Text>
+              </>
+            )}
+          </View>
+        )}
       </View>
 
       <View style={styles.divider} />
+
+      {/* Instrucciones */}
+      <View style={styles.instructionsContainer}>
+        <Ionicons name="information-circle-outline" size={20} color="#666" />
+        <View style={styles.instructionsText}>
+          <Text style={styles.instructionTitle}>Para probar la alerta:</Text>
+          <Text style={styles.instructionStep}>1. Conecta tu pulsera</Text>
+          <Text style={styles.instructionStep}>2. Presiona el botón 3 veces seguidas</Text>
+          <Text style={styles.instructionStep}>3. La app mostrará la alerta de emergencia</Text>
+        </View>
+      </View>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -93,42 +586,161 @@ const styles = StyleSheet.create({
   },
   bluetoothButton: {
     backgroundColor: '#0000ff',
+    padding: 12,
+    borderRadius: 25,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  connectedButton: {
+    backgroundColor: '#4CAF50',
+  },
+  scanningButton: {
+    backgroundColor: '#FF9800',
+  },
+  statusContainer: {
+    backgroundColor: '#e8f5e8',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2d5a2d',
+    marginLeft: 8,
+  },
+  debugInfo: {
+    backgroundColor: '#f0f0f0',
     padding: 10,
-    borderRadius: 20,
+    borderRadius: 8,
+    marginBottom: 15,
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+  },
+  sectionContainer: {
+    marginBottom: 10,
   },
   subTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 10,
+    marginBottom: 15,
     color: '#555',
   },
   braceletCard: {
     backgroundColor: '#f6f6f6',
-    padding: 14,
-    borderRadius: 10,
+    padding: 16,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.22,
+    shadowRadius: 2.22,
+  },
+  connectedCard: {
+    backgroundColor: '#e8f5e8',
+    borderWidth: 2,
+    borderColor: '#4CAF50',
+  },
+  deviceInfo: {
+    flex: 1,
+    marginLeft: 12,
   },
   braceletText: {
     fontWeight: 'bold',
-    marginLeft: 10,
     fontSize: 16,
     color: '#333',
+  },
+  rssiText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#4CAF50',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  deviceList: {
+    maxHeight: 250,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    padding: 30,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderStyle: 'dashed',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 10,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  emptySubText: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 5,
+    textAlign: 'center',
   },
   divider: {
     height: 2,
     backgroundColor: '#A020F0',
-    marginVertical: 16,
+    marginVertical: 20,
+    borderRadius: 1,
   },
   availableHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   searchLink: {
     color: '#6c4ee3',
-    fontWeight: '500',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  searchLinkDisabled: {
+    color: '#ccc',
+  },
+  instructionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#f0f8ff',
+    padding: 15,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  instructionsText: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  instructionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
+  },
+  instructionStep: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
   },
 });
+
+export default ConnectScreen;
