@@ -7,7 +7,6 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import React, { useCallback, useState } from "react";
 import {
-  Alert,
   Image,
   StyleSheet,
   Text,
@@ -16,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { CustomModal } from "@/components/ui/CustomModal";
 
 export default function Login() {
   const router = useRouter();
@@ -23,6 +23,13 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const [modal, setModal] = useState({
+    visible: false,
+    type: "error" as "success" | "error",
+    title: "",
+    message: "",
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -33,10 +40,13 @@ export default function Login() {
     }, [])
   );
 
+  const showModalError = (title: string, message: string) => {
+    setModal({ visible: true, type: "error", title, message });
+  };
+
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert("Error", "Por favor ingresa correo y contraseña");
-      return;
+      return showModalError("Campos vacíos", "Ingresa correo y contraseña.");
     }
 
     try {
@@ -66,21 +76,18 @@ export default function Login() {
         });
       }
 
-      router.push("/home");
+      router.replace("/home");
     } catch (error: any) {
       console.log("Error al iniciar sesión:", error);
       if (error.code === "auth/invalid-credential") {
-        Alert.alert(
-          "Error",
-          "Credenciales inválidas. Por favor verifica tu correo y contraseña."
+        showModalError(
+          "Credenciales inválidas",
+          "Verifica tu correo y contraseña."
         );
       } else if (error.code === "auth/invalid-email") {
-        Alert.alert("Error", "Correo electrónico inválido.");
+        showModalError("Correo inválido", "El formato del correo es incorrecto.");
       } else {
-        Alert.alert(
-          "Error",
-          error.message || "Error desconocido al iniciar sesión."
-        );
+        showModalError("Error inesperado", error.message || "Intenta nuevamente.");
       }
     }
   };
@@ -154,6 +161,16 @@ export default function Login() {
           </View>
         </View>
       </SafeAreaView>
+
+      {/* Modal de error con autocierre */}
+      <CustomModal
+        visible={modal.visible}
+        type={modal.type}
+        title={modal.title}
+        message={modal.message}
+        onlyConfirm
+        onAutoClose={() => setModal((prev) => ({ ...prev, visible: false }))}
+      />
     </>
   );
 }
