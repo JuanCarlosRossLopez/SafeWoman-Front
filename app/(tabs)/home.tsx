@@ -1,94 +1,281 @@
-import { Ionicons } from '@expo/vector-icons';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  LayoutAnimation,
+  UIManager,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+} from "react-native";
+import { useEffect, useState } from "react";
+import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { db, auth } from "@/services/firebase-config";
+import { useRouter } from "expo-router";
+import { useUserStore } from "@/store/userStore";
+import Header from "@/layouts/Header";
+import ContactItem from "@/components/Home/ContactItem";
+import UserHeader from "@/components/Home/UserHeader";
+import EmptyState from "@/components/Home/EmptyState";
+import VideosBlock from "@/components/Home/VideosBlock";
+import { Ionicons } from "@expo/vector-icons";
+import { CustomModal } from "@/components/ui/CustomModal";
+
+if (
+  Platform.OS === "android" &&
+  UIManager.setLayoutAnimationEnabledExperimental
+) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export default function HomeScreen() {
   const router = useRouter();
-    const contacts = [
-    { id: '1', name: 'Esposo', phone: '9986321457' },
-    { id: '2', name: 'Mamá', phone: '9986321457' },
-  ];  
+  const { name, emergencyContacts, setEmergencyContacts } = useUserStore();
+  const [loading, setLoading] = useState(true);
+
+  // Estados para los modales
+  const [showModal, setShowModal] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const [feedbackModal, setFeedbackModal] = useState({
+    visible: false,
+    type: "success" as "success" | "error",
+    title: "",
+    message: "",
+  });
+
+  useEffect(() => {
+    const fetchContacts = async () => {
+      try {
+        const user = auth.currentUser;
+        if (user) {
+          const contactsRef = collection(
+            db,
+            "users",
+            user.uid,
+            "emergencyContacts"
+          );
+          const querySnapshot = await getDocs(contactsRef);
+          const contactsData = querySnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          setEmergencyContacts(contactsData);
+        }
+      } catch (error) {
+        console.error("Error al cargar contactos:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchContacts();
+  }, [setEmergencyContacts]);
+
+  // Abrir modal para confirmar eliminación
+  const confirmDeleteContact = (id: string) => {
+    setSelectedId(id);
+    setShowModal(true);
+  };
+
+  // Confirmación recibida, eliminar contacto
+  const handleDeleteConfirmed = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user || !selectedId) return;
+
+      await deleteDoc(doc(db, "users", user.uid, "emergencyContacts", selectedId));
+
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      const updated = emergencyContacts.filter((c) => c.id !== selectedId);
+      setEmergencyContacts(updated);
+
+      setFeedbackModal({
+        visible: true,
+        type: "success",
+        title: "Contacto eliminado",
+        message: "El contacto fue eliminado correctamente.",
+      });
+    } catch (err) {
+      console.error("Error real al eliminar:", err);
+      setFeedbackModal({
+        visible: true,
+        type: "error",
+        title: "Error",
+        message: "No se pudo eliminar el contacto. Intenta de nuevo.",
+      });
+    } finally {
+      setShowModal(false);
+      setSelectedId(null);
+    }
+  };
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <Header />
+        <UserHeader name={name} />
 
-   <View style={styles.titleContainer}>
-           <View style={styles.leftHeader}>
-       <Image
-         source={require('@/assets/images/iconoSW.png')}
-         style={styles.logo}
-       />
-       <Text style={styles.title}>Safewoman</Text>
-     </View>
-   
-     <Ionicons name="settings-outline" size={28} color="black" />
-   </View>
-
-
-      <View style={styles.userBox}>
-       <Image source={require('../../assets/images/usericon.png')} style={styles.avatar} />
-        <Text style={styles.greeting}>¡Hola!
-          <Text style={{ fontWeight: 'bold' }}> Usuario</Text>
-        </Text>
-      </View>
-
-      <View style={styles.contactsBox}>
-        <Text style={styles.sectionTitle}>Tus contactos de emergencia</Text>
-        {contacts.map(contact => (
-          <View key={contact.id} style={styles.contactItem}>
-            <Ionicons name="person-circle-outline" size={30} color="#aaa" />
-            <View style={styles.contactText}>
-              <Text style= {{fontSize:15,color:'#5F5F5F'}}>{contact.name}</Text>
-              <Text style={{ fontSize: 15 ,color:'#5F5F5F' }}>{contact.phone}</Text>
-            </View>
-            <Ionicons name="create-outline" size={20} color="#aa55cc" style={styles.iconBtn} />
-            <Ionicons name="close-circle-outline" size={20} color="red" style={styles.iconBtn} />
+        <View style={styles.contactsBox}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Tus contactos de emergencia</Text>
+            {emergencyContacts.length > 0 && (
+              <Text style={styles.countText}>
+                ({emergencyContacts.length} en total)
+              </Text>
+            )}
           </View>
-        ))}
-        <TouchableOpacity style={styles.addButton} onPress={() => router.replace('/Register_Contact')}>
-          <Text style={styles.addButtonText}>Agregar contacto</Text>
-        </TouchableOpacity>
-      </View>
+          {loading ? (
+            <Text style={styles.loadingText}>Cargando contactos...</Text>
+          ) : (
+            <>
+              <FlatList
+                data={emergencyContacts.slice(0, 3)}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <ContactItem
+                    item={item}
+                    onEdit={() =>
+                      router.push({
+                        pathname: "/Register_Contact",
+                        params: { id: item.id },
+                      })
+                    }
+                    onDelete={() => confirmDeleteContact(item.id)}
+                  />
+                )}
+                ListEmptyComponent={<EmptyState />}
+                scrollEnabled={false}
+                nestedScrollEnabled={true}
+              />
 
-     
-      <View style={styles.videosSection}>
-        <View style={styles.videoHeader}>
-          <Text style={styles.sectionTitle}>Videos</Text>
-          <Text style={{ color: '#666' }}>Ver más videos</Text>
+              {emergencyContacts.length >= 0 && (
+                <TouchableOpacity
+                  style={styles.viewAllButton}
+                  onPress={() => router.push("/AllContacts")}
+                >
+                  <Text style={styles.viewAllText}>Ver todos los contactos</Text>
+                  <Ionicons name="arrow-forward" size={18} color="#B109C7" />
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => router.push("/Register_Contact")}
+          >
+            <Ionicons name="add-circle-outline" size={22} color="#fff" />
+            <Text style={styles.addButtonText}>Agregar contacto</Text>
+          </TouchableOpacity>
         </View>
-        <Image source={require('../../assets/images/mujerVideo.jpg')} style={styles.videoThumbnail} />
-        <Text style={styles.videoCaption}>Como reaccionar ante una situación de riesgo</Text>
-      </View>
 
-    </View>
+        <VideosBlock />
+      </ScrollView>
+
+      {/* Modal de Confirmación */}
+      <CustomModal
+        visible={showModal}
+        type="confirm"
+        title="¿Eliminar contacto?"
+        message="Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        onConfirm={handleDeleteConfirmed}
+        onCancel={() => setShowModal(false)}
+      />
+
+      {/* Modal de Éxito o Error con autocierre */}
+      <CustomModal
+        visible={feedbackModal.visible}
+        type={feedbackModal.type}
+        title={feedbackModal.title}
+        message={feedbackModal.message}
+        onAutoClose={() =>
+          setFeedbackModal((prev) => ({ ...prev, visible: false }))
+        }
+        onlyConfirm={true}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 16, }, 
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',marginTop:22},
-logo: {
-    width: 60,
-    height: 60,
-    resizeMode: 'contain',
-    marginRight: 10,
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#fff",
   },
-  title: { fontSize: 18, fontWeight: 'bold', color: '#B109C7' },
-  userBox: { backgroundColor: '#f3d9f9', flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 10, marginTop: 15 },
-  avatar: { width: 75, height: 75, marginLeft:30,marginRight: 30 },
-  greeting: { fontSize: 12 },
-  contactsBox: { marginTop: 45, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#B109C7' },
-  sectionTitle: { fontWeight: 'bold', marginBottom: 8, color:'#5F5F5F'},
-  contactItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 , borderRadius:10,borderWidth:0.5, borderColor:'#D6D6D6'},
-  contactText: { flex: 2, marginLeft: 8 },
-  iconBtn: { marginHorizontal: 4 },
-  addButton: { marginTop: 10, backgroundColor: '#B109C7', padding: 10, borderRadius: 8, alignItems: 'center' },
-  addButtonText: { color: '#fff', fontWeight: 'bold' },
-  videosSection: { marginTop: 30 },
-  videoHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  videoThumbnail: { width: '100%', height: 160, borderRadius: 10 },
-  videoCaption: { marginTop: 8, fontWeight: 'bold' },
-  footerNav: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#ccc' },
-  navItem: { alignItems: 'center' },
-   titleContainer: {flexDirection: 'row',alignItems: 'center',justifyContent: 'space-between',marginBottom: 20,marginTop:22},
-   leftHeader: {flexDirection: 'row',alignItems: 'center',}, 
+  scrollContainer: {
+    padding: 16,
+    paddingBottom: 10,
+  },
+  container: {
+    flex: 1,
+  },
+  contactsBox: {
+    marginTop: 40,
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#B109C7",
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontWeight: "bold",
+    marginBottom: 16,
+    color: "#333",
+    fontSize: 17,
+  },
+  loadingText: {
+    textAlign: "center",
+    color: "#666",
+    marginVertical: 20,
+  },
+  addButton: {
+    marginTop: 24,
+    backgroundColor: "#B109C7",
+    padding: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 10,
+  },
+  addButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  viewAllButton: {
+    marginTop: 12,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  viewAllText: {
+    color: "#B109C7",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  countText: {
+    color: "#B109C7",
+    fontSize: 14,
+    paddingLeft: 5,
+    fontWeight: "500",
+  },
 });

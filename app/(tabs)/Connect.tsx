@@ -37,12 +37,24 @@ const ConnectScreen: React.FC = () => {
   const [pairedDevices, setPairedDevices] = useState<PairedDevice[]>([]);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [connectionStatus, setConnectionStatus] = useState<string>('Desconectado');
+  const [autoReconnect, setAutoReconnect] = useState<boolean>(true);
+  const [lastConnectedDeviceId, setLastConnectedDeviceId] = useState<string | null>(null);
 
   useEffect(() => {
     initializeBLE();
     loadPairedDevices();
+    
+    // Monitorear estado del Bluetooth
+    const subscription = bleManager.onStateChange((state) => {
+      console.log('📡 Estado Bluetooth cambió a:', state);
+      if (state === 'PoweredOn' && autoReconnect && lastConnectedDeviceId) {
+        console.log('🔄 Intentando reconexión automática...');
+        setTimeout(() => attemptReconnection(), 2000);
+      }
+    });
 
     return () => {
+      subscription?.remove();
       bleManager.destroy();
     };
   }, []);
@@ -149,8 +161,18 @@ const ConnectScreen: React.FC = () => {
       setConnectionStatus('Conectando...');
       console.log(`🔗 Conectando a: ${deviceToConnect.name}`);
       
-      // Conectar al dispositivo
-      const device = await bleManager.connectToDevice(deviceToConnect.id);
+      // Detener escaneo si está activo
+      if (isScanning) {
+        bleManager.stopDeviceScan();
+        setIsScanning(false);
+      }
+      
+      // Conectar al dispositivo con timeout
+      const device = await bleManager.connectToDevice(deviceToConnect.id, {
+        timeout: 10000,
+        autoConnect: true, // Habilitar auto-reconexión
+        refreshGatt: 'OnConnected'
+      });
       console.log('✅ Dispositivo conectado');
       
       // Descubrir servicios
@@ -158,7 +180,8 @@ const ConnectScreen: React.FC = () => {
       console.log('✅ Servicios descubiertos');
       
       setConnectedDevice(device);
-      setConnectionStatus('Conectado');
+      setConnectionStatus('Conectado y vinculado');
+      setLastConnectedDeviceId(device.id);
       
       // Suscribirse a notificaciones de alerta
       await subscribeToAlerts(device);
@@ -166,7 +189,24 @@ const ConnectScreen: React.FC = () => {
       // Suscribirse a notificaciones de estado
       await subscribeToStatus(device);
       
-      Alert.alert('✅ Conexión exitosa', `Conectado a ${device.name || 'SmartWatch'}`);
+      // Monitorear desconexiones
+      device.onDisconnected((error, disconnectedDevice) => {
+        console.log('📱 Dispositivo desconectado:', disconnectedDevice?.id);
+        if (error) {
+          console.log('❌ Error de desconexión:', error);
+        }
+        
+        setConnectedDevice(null);
+        setConnectionStatus('Desconectado');
+        
+        // Intentar reconexión automática
+        if (autoReconnect) {
+          console.log('🔄 Programando reconexión automática en 3 segundos...');
+          setTimeout(() => attemptReconnection(), 3000);
+        }
+      });
+      
+      Alert.alert('✅ Conexión exitosa', `Conectado y vinculado a ${device.name || 'SmartWatch'}`);
       
       // Actualizar dispositivos emparejados
       updatePairedDevices(device);
@@ -176,6 +216,78 @@ const ConnectScreen: React.FC = () => {
       setConnectionStatus('Error de conexión');
       Alert.alert('❌ Error', 'No se pudo conectar al dispositivo');
     }
+  };
+
+  const attemptReconnection = async (): Promise<void> => {
+    if (!lastConnectedDeviceId || connectedDevice) return;
+    
+    console.log('🔄 Intentando reconexión automática...');
+    setConnectionStatus('Reconectando...');
+    
+    try {
+      // Buscar dispositivo conocido
+      const knownDevices = await bleManager.connectedDevices([SERVICE_UUID]);
+      const targetDevice = knownDevices.find(d => d.id === lastConnectedDeviceId);
+      
+      if (targetDevice) {
+        console.log('✅ Dispositivo encontrado en lista de conectados');
+        await connectToKnownDevice(targetDevice);
+      } else {
+        console.log('🔍 Dispositivo no encontrado, iniciando escaneo...');
+        await startScanningForReconnection();
+      }
+    } catch (error) {
+      console.error('❌ Error en reconexión automática:', error);
+      setConnectionStatus('Error de reconexión');
+    }
+  };
+
+  const connectToKnownDevice = async (device: Device): Promise<void> => {
+    try {
+      await device.connect();
+      await device.discoverAllServicesAndCharacteristics();
+      
+      setConnectedDevice(device);
+      setConnectionStatus('Reconectado');
+      
+      await subscribeToAlerts(device);
+      await subscribeToStatus(device);
+      
+      console.log('✅ Reconexión exitosa');
+    } catch (error) {
+      console.error('❌ Error en reconexión:', error);
+      throw error;
+    }
+  };
+
+  const startScanningForReconnection = async (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        bleManager.stopDeviceScan();
+        reject(new Error('Timeout en escaneo de reconexión'));
+      }, 10000);
+
+      bleManager.startDeviceScan([SERVICE_UUID], null, async (error, device) => {
+        if (error) {
+          console.error('❌ Error en escaneo de reconexión:', error);
+          clearTimeout(timeout);
+          reject(error);
+          return;
+        }
+
+        if (device && device.id === lastConnectedDeviceId) {
+          bleManager.stopDeviceScan();
+          clearTimeout(timeout);
+          
+          try {
+            await connectToKnownDevice(device);
+            resolve();
+          } catch (connectError) {
+            reject(connectError);
+          }
+        }
+      });
+    });
   };
 
   const subscribeToAlerts = async (device: Device): Promise<void> => {
@@ -249,13 +361,14 @@ const ConnectScreen: React.FC = () => {
               // Actualizar estado de conexión
               switch (decodedStatus) {
                 case 'connected':
-                  setConnectionStatus('Conectado');
+                  setConnectionStatus('Conectado y vinculado');
                   break;
                 case 'alert_sent':
                   setConnectionStatus('Alerta enviada');
                   break;
                 case 'heartbeat':
-                  setConnectionStatus('Conectado - Activo');
+                  setConnectionStatus('Conectado - Activo ❤️');
+                  console.log('💓 Heartbeat recibido - Conexión estable');
                   break;
                 default:
                   setConnectionStatus(decodedStatus);
@@ -451,6 +564,22 @@ En una versión completa, aquí se ejecutarían todas las acciones de emergencia
         </View>
       )}
 
+      {/* Indicador de reconexión automática */}
+      {autoReconnect && !connectedDevice && lastConnectedDeviceId && (
+        <View style={styles.reconnectContainer}>
+          <Ionicons name="sync" size={20} color="#FF9800" />
+          <Text style={styles.reconnectLabel}>
+            Reconexión automática habilitada
+          </Text>
+          <TouchableOpacity 
+            onPress={() => setAutoReconnect(false)}
+            style={styles.disableButton}
+          >
+            <Text style={styles.disableButtonText}>Desactivar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Información de debug mejorada */}
       <View style={styles.debugInfo}>
         <Text style={styles.debugText}>
@@ -614,6 +743,34 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#2d5a2d',
     marginLeft: 8,
+  },
+  reconnectContainer: {
+    backgroundColor: '#fff3e0',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FF9800',
+  },
+  reconnectLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#e65100',
+    marginLeft: 8,
+    flex: 1,
+  },
+  disableButton: {
+    backgroundColor: '#FF9800',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  disableButtonText: {
+    fontSize: 10,
+    color: 'white',
+    fontWeight: 'bold',
   },
   debugInfo: {
     backgroundColor: '#f0f0f0',
