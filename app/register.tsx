@@ -61,7 +61,7 @@ export default function Register() {
     Alert.alert('¡Éxito!', 'Cuenta creada correctamente. Ahora puedes iniciar sesión.', [
       {
         text: 'OK',
-        onPress: () => router.push('/login'),
+        onPress: () => router.replace('/login'),
       },
     ]);
   } catch (error: any) {

@@ -9,8 +9,10 @@ import {
   Platform,
   SafeAreaView,
   ScrollView,
+  BackHandler,
 } from "react-native";
 import { useEffect, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
 import { db, auth } from "@/services/firebase-config";
 import { useRouter } from "expo-router";
@@ -46,6 +48,16 @@ export default function HomeScreen() {
     message: "",
   });
 
+  useFocusEffect(() => {
+  const onBackPress = () => {
+    return true; 
+  };
+
+  const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+  return () => subscription.remove();
+});
+
+
   useEffect(() => {
     const fetchContacts = async () => {
       try {
@@ -74,13 +86,11 @@ export default function HomeScreen() {
     fetchContacts();
   }, [setEmergencyContacts]);
 
-  // Abrir modal para confirmar eliminación
   const confirmDeleteContact = (id: string) => {
     setSelectedId(id);
     setShowModal(true);
   };
 
-  // Confirmación recibida, eliminar contacto
   const handleDeleteConfirmed = async () => {
     try {
       const user = auth.currentUser;
@@ -175,7 +185,7 @@ export default function HomeScreen() {
         <VideosBlock />
       </ScrollView>
 
-      {/* Modal de Confirmación */}
+      {/* Modal Confirmación */}
       <CustomModal
         visible={showModal}
         type="confirm"
@@ -187,7 +197,7 @@ export default function HomeScreen() {
         onCancel={() => setShowModal(false)}
       />
 
-      {/* Modal de Éxito o Error con autocierre */}
+      {/* Modal Éxito/Error */}
       <CustomModal
         visible={feedbackModal.visible}
         type={feedbackModal.type}
@@ -210,9 +220,6 @@ const styles = StyleSheet.create({
   scrollContainer: {
     padding: 16,
     paddingBottom: 10,
-  },
-  container: {
-    flex: 1,
   },
   contactsBox: {
     marginTop: 40,
