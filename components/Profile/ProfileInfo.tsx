@@ -78,7 +78,6 @@ export const ProfileInfo = ({
       showModal("success", "¡Éxito!", "Perfil actualizado correctamente.");
       setIsEditing(false);
     } catch (error) {
-      console.error("Error al actualizar perfil:", error);
       showModal("error", "Error", "Ocurrió un error al guardar los cambios.");
     }
   };

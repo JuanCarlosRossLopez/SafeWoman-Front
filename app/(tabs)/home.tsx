@@ -77,7 +77,6 @@ export default function HomeScreen() {
           setEmergencyContacts(contactsData);
         }
       } catch (error) {
-        console.error("Error al cargar contactos:", error);
       } finally {
         setLoading(false);
       }
@@ -109,7 +108,6 @@ export default function HomeScreen() {
         message: "El contacto fue eliminado correctamente.",
       });
     } catch (err) {
-      console.error("Error real al eliminar:", err);
       setFeedbackModal({
         visible: true,
         type: "error",

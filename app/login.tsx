@@ -76,9 +76,13 @@ export default function Login() {
         });
       }
 
-      router.replace("/home");
+      setModal({
+        visible: true,
+        type: "success",
+        title: "¡Inicio de sesión exitoso!",
+        message: "Bienvenido/a de nuevo.",
+      });
     } catch (error: any) {
-      console.log("Error al iniciar sesión:", error);
       if (error.code === "auth/invalid-credential") {
         showModalError(
           "Credenciales inválidas",
@@ -162,14 +166,19 @@ export default function Login() {
         </View>
       </SafeAreaView>
 
-      {/* Modal de error con autocierre */}
+      {/* Modal de error o éxito con autocierre */}
       <CustomModal
         visible={modal.visible}
         type={modal.type}
         title={modal.title}
         message={modal.message}
         onlyConfirm
-        onAutoClose={() => setModal((prev) => ({ ...prev, visible: false }))}
+        onAutoClose={() => {
+          setModal((prev) => ({ ...prev, visible: false }));
+          if (modal.type === "success") {
+            router.replace("/home");
+          }
+        }}
       />
     </>
   );

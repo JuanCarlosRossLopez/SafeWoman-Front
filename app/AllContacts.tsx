@@ -40,7 +40,6 @@ const AllContacts = () => {
         }));
         setEmergencyContacts(contactsData);
       } catch (error) {
-        console.error("Error loading contacts:", error);
         Alert.alert("Error", "No se pudieron cargar los contactos");
       } finally {
         setIsLoading(false);
@@ -69,7 +68,6 @@ const AllContacts = () => {
               setEmergencyContacts(emergencyContacts.filter((contact) => contact.id !== contactId));
               Alert.alert("Contacto eliminado", "El contacto fue eliminado correctamente");
             } catch (error) {
-              console.error("Error deleting contact:", error);
               Alert.alert("Error", "No se pudo eliminar el contacto");
             }
           },

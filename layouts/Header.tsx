@@ -43,7 +43,6 @@ const Header = () => {
         router.replace("/login");
       }, 1500);
     } catch (error) {
-      console.error("Error al cerrar sesión:", error);
       setLoading(false);
       setFeedbackModal({
         visible: true,

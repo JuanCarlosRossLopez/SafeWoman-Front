@@ -1,5 +1,12 @@
-import React, { useCallback } from 'react';
-import {Alert,Image,StyleSheet,Text,TextInput,TouchableOpacity,View,} from 'react-native';
+import React, { useCallback, useState } from 'react';
+import {
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
@@ -9,6 +16,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { useFocusEffect } from '@react-navigation/native';
 import { registerSchema } from '@/validators/registerSchema';
+import { CustomModal } from '@/components/ui/CustomModal';
 
 export default function Register() {
   const router = useRouter();
@@ -23,6 +31,14 @@ export default function Register() {
     mode: 'onChange',
   });
 
+  // Estado para controlar el modal
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalData, setModalData] = useState<{
+    type: 'confirm' | 'success' | 'error';
+    title: string;
+    message: string;
+  }>({ type: 'confirm', title: '', message: '' });
+
   useFocusEffect(
     useCallback(() => {
       return () => reset();
@@ -30,57 +46,76 @@ export default function Register() {
   );
 
   const onSubmit = async (data: any) => {
-  try {
-    const usersRef = collection(db, 'users');
-    const phoneQuery = query(usersRef, where('phone', '==', data.phone));
-    const querySnapshot = await getDocs(phoneQuery);
+    try {
+      const usersRef = collection(db, 'users');
+      const phoneQuery = query(usersRef, where('phone', '==', data.phone));
+      const querySnapshot = await getDocs(phoneQuery);
 
-    if (!querySnapshot.empty) {
-      Alert.alert('Error', 'El número de teléfono ya está en uso. Intenta con otro.');
-      return;
-    }
+      if (!querySnapshot.empty) {
+        setModalData({
+          type: 'error',
+          title: 'Error',
+          message: 'El número de teléfono ya está en uso. Intenta con otro.',
+        });
+        setModalVisible(true);
+        return;
+      }
 
-    const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-    const user = userCredential.user;
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        data.email,
+        data.password
+      );
+      const user = userCredential.user;
 
-    await setDoc(doc(db, 'users', user.uid), {
-      uid: user.uid,
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      createdAt: new Date(),
-       alertaActiva: false,
+      await setDoc(doc(db, 'users', user.uid), {
+        uid: user.uid,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        createdAt: new Date(),
+        alertaActiva: false,
         location: {
           latitude: null,
           longitude: null,
-          timestamp: null
-        }
-    });
+          timestamp: null,
+        },
+      });
 
-    reset();
-    Alert.alert('¡Éxito!', 'Cuenta creada correctamente. Ahora puedes iniciar sesión.', [
-      {
-        text: 'OK',
-        onPress: () => router.replace('/login'),
-      },
-    ]);
-  } catch (error: any) {
-    console.error('Error al crear usuario:', error.code, error.message);
+      reset();
 
-    if (error.code === 'auth/email-already-in-use') {
-      Alert.alert('Error', 'El correo ya está en uso. Intenta con otro.');
-    } else {
-      Alert.alert('Error', error.message);
+      setModalData({
+        type: 'success',
+        title: '¡Éxito!',
+        message: 'Cuenta creada correctamente. Ahora puedes iniciar sesión.',
+      });
+      setModalVisible(true);
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-in-use') {
+        setModalData({
+          type: 'error',
+          title: 'Error',
+          message: 'El correo ya está en uso. Intenta con otro.',
+        });
+      } else {
+        setModalData({
+          type: 'error',
+          title: 'Error',
+          message: error.message,
+        });
+      }
+      setModalVisible(true);
     }
-  }
-};
-
+  };
 
   return (
     <SafeAreaView style={styles.section}>
       <View style={styles.container}>
         <View>
-          <Image source={require('@/assets/images/iconoSW.png')} style={styles.safeLogo} />
+          <Image
+            source={require('@/assets/images/iconoSW.png')}
+            style={styles.safeLogo}
+          />
           <Text style={styles.logoText}>Safewoman</Text>
         </View>
 
@@ -103,7 +138,9 @@ export default function Register() {
                   onChangeText={onChange}
                   value={value}
                 />
-                {errors.name && <Text style={styles.errorText}>{errors.name.message}</Text>}
+                {errors.name && (
+                  <Text style={styles.errorText}>{errors.name.message}</Text>
+                )}
               </>
             )}
           />
@@ -123,7 +160,9 @@ export default function Register() {
                   onChangeText={onChange}
                   value={value}
                 />
-                {errors.email && <Text style={styles.errorText}>{errors.email.message}</Text>}
+                {errors.email && (
+                  <Text style={styles.errorText}>{errors.email.message}</Text>
+                )}
               </>
             )}
           />
@@ -142,7 +181,9 @@ export default function Register() {
                   onChangeText={onChange}
                   value={value}
                 />
-                {errors.phone && <Text style={styles.errorText}>{errors.phone.message}</Text>}
+                {errors.phone && (
+                  <Text style={styles.errorText}>{errors.phone.message}</Text>
+                )}
               </>
             )}
           />
@@ -161,7 +202,9 @@ export default function Register() {
                   onChangeText={onChange}
                   value={value}
                 />
-                {errors.password && <Text style={styles.errorText}>{errors.password.message}</Text>}
+                {errors.password && (
+                  <Text style={styles.errorText}>{errors.password.message}</Text>
+                )}
               </>
             )}
           />
@@ -181,13 +224,18 @@ export default function Register() {
                   value={value}
                 />
                 {errors.confirmPassword && (
-                  <Text style={styles.errorText}>{errors.confirmPassword.message}</Text>
+                  <Text style={styles.errorText}>
+                    {errors.confirmPassword.message}
+                  </Text>
                 )}
               </>
             )}
           />
 
-          <TouchableOpacity style={styles.button} onPress={handleSubmit(onSubmit)}>
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleSubmit(onSubmit)}
+          >
             <Text style={styles.text}>Registrarse</Text>
           </TouchableOpacity>
 
@@ -199,6 +247,24 @@ export default function Register() {
           </View>
         </View>
       </View>
+
+      {/* Modal personalizado */}
+      <CustomModal
+        visible={modalVisible}
+        type={modalData.type}
+        title={modalData.title}
+        message={modalData.message}
+        onlyConfirm
+        onConfirm={() => setModalVisible(false)}
+        onAutoClose={
+          modalData.type === 'success'
+            ? () => {
+                setModalVisible(false);
+                router.replace('/login');
+              }
+            : () => setModalVisible(false)
+        }
+      />
     </SafeAreaView>
   );
 }

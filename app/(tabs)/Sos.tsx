@@ -64,7 +64,6 @@ const SOSScreen = () => {
         });
       }
     } catch (error) {
-      console.error("Error al actualizar ubicación:", error);
     }
   };
 
@@ -105,7 +104,6 @@ const SOSScreen = () => {
         showModal('success', 'Alerta desactivada', 'Tu alerta SOS ha sido desactivada');
       }
     } catch (error) {
-      console.error("Error al actualizar estado de alerta:", error);
       setAlertActive(!alertActive);
       showModal('error', 'Error', 'No se pudo actualizar el estado de alerta');
     } finally {

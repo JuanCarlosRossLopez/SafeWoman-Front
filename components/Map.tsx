@@ -52,7 +52,6 @@ const Map = () => {
       } catch (error) {
         setErrorMsg('Error obteniendo datos de estaciones');
         Alert.alert('Error', 'No se pudo obtener las estaciones de policía');
-        console.error(error);
       }
     })();
   }, []);

@@ -62,8 +62,6 @@ const ProfileView = () => {
         router.replace("/login");
       }, 1000);
     } catch (error) {
-      console.error("Error al cerrar sesión:", error);
-
       setFeedbackModal({
         visible: true,
         type: "error",
