@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, FlatList } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, FlatList, Platform } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BleManager, Device, Characteristic } from 'react-native-ble-plx';
+import * as Location from 'expo-location';
 
 // Interfaces para TypeScript
 interface AlertData {
@@ -43,7 +44,8 @@ const ConnectScreen: React.FC = () => {
   useEffect(() => {
     initializeBLE();
     loadPairedDevices();
-    
+    requestPermissions(); // Solicitar permisos al inicio
+
     // Monitorear estado del Bluetooth
     const subscription = bleManager.onStateChange((state) => {
       console.log('📡 Estado Bluetooth cambió a:', state);
@@ -59,27 +61,73 @@ const ConnectScreen: React.FC = () => {
     };
   }, []);
 
+  const requestPermissions = async (): Promise<void> => {
+    try {
+      console.log('🔐 Solicitando permisos...');
+
+      // Solicitar permisos de ubicación (requerido para BLE en Android)
+      const { status } = await Location.requestForegroundPermissionsAsync();
+
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permisos requeridos',
+          'SafeWoman necesita permisos de ubicación para usar Bluetooth Low Energy. Por favor, activa los permisos en Configuración.',
+          [
+            { text: 'Configuración', onPress: () => Location.requestForegroundPermissionsAsync() },
+            { text: 'Cancelar', style: 'cancel' }
+          ]
+        );
+        return;
+      }
+
+      console.log('✅ Permisos de ubicación concedidos');
+
+      // Para Android 12+ también necesitamos permisos específicos de Bluetooth
+      if (Platform.OS === 'android') {
+        console.log('📱 Solicitando permisos de Bluetooth para Android...');
+        // Los permisos de Bluetooth se manejan automáticamente con la configuración del app.json
+      }
+
+    } catch (error) {
+      console.error('❌ Error solicitando permisos:', error);
+      Alert.alert('Error', 'No se pudieron solicitar los permisos necesarios');
+    }
+  };
   const initializeBLE = async (): Promise<void> => {
     try {
       console.log('🔧 Inicializando BLE...');
-      
+
       // Verificar estado del Bluetooth
       const state = await bleManager.state();
       console.log('📡 Estado del Bluetooth:', state);
-      
+
       if (state === 'PoweredOn') {
         console.log('✅ Bluetooth está listo');
-      } else {
-        console.log('⚠️ Bluetooth no está disponible:', state);
+      } else if (state === 'PoweredOff') {
         Alert.alert(
-          'Bluetooth requerido', 
-          `Estado actual: ${state}\nPor favor activa el Bluetooth y reinicia la aplicación`
+          'Bluetooth desactivado',
+          'Por favor activa el Bluetooth en tu dispositivo',
+          [
+            { text: 'OK', onPress: () => console.log('Usuario notificado sobre Bluetooth') }
+          ]
+        );
+      } else if (state === 'Unauthorized') {
+        Alert.alert(
+          'Permisos de Bluetooth requeridos',
+          'SafeWoman necesita permisos de Bluetooth para funcionar. Por favor, otorga los permisos en la configuración del dispositivo.',
+          [
+            { text: 'Solicitar permisos', onPress: () => requestPermissions() },
+            { text: 'Cancelar', style: 'cancel' }
+          ]
+        );
+      } else {
+        console.log('⚠️ Estado de Bluetooth:', state);
+        Alert.alert(
+          'Bluetooth no disponible',
+          `Estado actual: ${state}\nVerifica que tu dispositivo soporte Bluetooth Low Energy`
         );
       }
-      
-      // Verificar permisos (solo para debug)
-      console.log('🔐 Verificando permisos...');
-      
+
     } catch (error) {
       console.error('❌ Error inicializando BLE:', error);
       Alert.alert('Error', 'Error inicializando Bluetooth: ' + error);
@@ -96,30 +144,62 @@ const ConnectScreen: React.FC = () => {
 
   const startScanning = async (): Promise<void> => {
     if (isScanning) return;
-    
+
+    // Verificar permisos antes de escanear
+    const { status } = await Location.getForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permisos necesarios',
+        'Se necesitan permisos de ubicación para escanear dispositivos Bluetooth',
+        [
+          { text: 'Solicitar permisos', onPress: () => requestPermissions() },
+          { text: 'Cancelar', style: 'cancel' }
+        ]
+      );
+      return;
+    }
+
     setIsScanning(true);
     setAvailableDevices([]);
-    
+
     console.log('🔍 Iniciando escaneo...');
-    
+
     try {
       bleManager.startDeviceScan(null, null, (error, device) => {
         if (error) {
           console.error('❌ Error escaneando:', error);
           setIsScanning(false);
+
+          // Manejar errores específicos
+          if (error.message.includes('not authorized')) {
+            Alert.alert(
+              'Permisos de Bluetooth requeridos',
+              'La aplicación necesita permisos para usar Bluetooth. Por favor, acepta los permisos cuando aparezcan o actívalos manualmente en Configuración > Apps > SafeWoman > Permisos.',
+              [
+                { text: 'Reintentar', onPress: () => startScanning() },
+                { text: 'Ir a configuración', onPress: () => {
+                  // En una app real, aquí abrirías la configuración
+                  Alert.alert('Configuración', 'Ve a Configuración > Apps > SafeWoman > Permisos y activa Ubicación y Dispositivos cercanos');
+                }},
+                { text: 'Cancelar', style: 'cancel' }
+              ]
+            );
+          } else {
+            Alert.alert('Error de escaneo', error.message || 'No se pudo iniciar el escaneo');
+          }
           return;
         }
 
         if (device && device.name) {
           console.log(`📱 Dispositivo encontrado: ${device.name} - ID: ${device.id} - RSSI: ${device.rssi}`);
-          
+
           // Mostrar TODOS los dispositivos BLE primero para debug
           console.log(`🔧 Debug - Servicios: ${device.serviceUUIDs?.join(', ') || 'Sin servicios'}`);
-          
+
           // Buscar dispositivos SmartWatch (más permisivo)
           if (device.name === 'SmartWatch') {
             console.log(`✅ SmartWatch encontrado: ${device.name}`);
-            
+
             setAvailableDevices(prev => {
               const exists = prev.find(d => d.id === device.id);
               if (!exists) {
@@ -160,13 +240,13 @@ const ConnectScreen: React.FC = () => {
     try {
       setConnectionStatus('Conectando...');
       console.log(`🔗 Conectando a: ${deviceToConnect.name}`);
-      
+
       // Detener escaneo si está activo
       if (isScanning) {
         bleManager.stopDeviceScan();
         setIsScanning(false);
       }
-      
+
       // Conectar al dispositivo con timeout
       const device = await bleManager.connectToDevice(deviceToConnect.id, {
         timeout: 10000,
@@ -174,43 +254,43 @@ const ConnectScreen: React.FC = () => {
         refreshGatt: 'OnConnected'
       });
       console.log('✅ Dispositivo conectado');
-      
+
       // Descubrir servicios
       await device.discoverAllServicesAndCharacteristics();
       console.log('✅ Servicios descubiertos');
-      
+
       setConnectedDevice(device);
       setConnectionStatus('Conectado y vinculado');
       setLastConnectedDeviceId(device.id);
-      
+
       // Suscribirse a notificaciones de alerta
       await subscribeToAlerts(device);
-      
+
       // Suscribirse a notificaciones de estado
       await subscribeToStatus(device);
-      
+
       // Monitorear desconexiones
       device.onDisconnected((error, disconnectedDevice) => {
         console.log('📱 Dispositivo desconectado:', disconnectedDevice?.id);
         if (error) {
           console.log('❌ Error de desconexión:', error);
         }
-        
+
         setConnectedDevice(null);
         setConnectionStatus('Desconectado');
-        
+
         // Intentar reconexión automática
         if (autoReconnect) {
           console.log('🔄 Programando reconexión automática en 3 segundos...');
           setTimeout(() => attemptReconnection(), 3000);
         }
       });
-      
+
       Alert.alert('✅ Conexión exitosa', `Conectado y vinculado a ${device.name || 'SmartWatch'}`);
-      
+
       // Actualizar dispositivos emparejados
       updatePairedDevices(device);
-      
+
     } catch (error) {
       console.error('❌ Error conectando:', error);
       setConnectionStatus('Error de conexión');
@@ -220,15 +300,15 @@ const ConnectScreen: React.FC = () => {
 
   const attemptReconnection = async (): Promise<void> => {
     if (!lastConnectedDeviceId || connectedDevice) return;
-    
+
     console.log('🔄 Intentando reconexión automática...');
     setConnectionStatus('Reconectando...');
-    
+
     try {
       // Buscar dispositivo conocido
       const knownDevices = await bleManager.connectedDevices([SERVICE_UUID]);
       const targetDevice = knownDevices.find(d => d.id === lastConnectedDeviceId);
-      
+
       if (targetDevice) {
         console.log('✅ Dispositivo encontrado en lista de conectados');
         await connectToKnownDevice(targetDevice);
@@ -246,13 +326,13 @@ const ConnectScreen: React.FC = () => {
     try {
       await device.connect();
       await device.discoverAllServicesAndCharacteristics();
-      
+
       setConnectedDevice(device);
       setConnectionStatus('Reconectado');
-      
+
       await subscribeToAlerts(device);
       await subscribeToStatus(device);
-      
+
       console.log('✅ Reconexión exitosa');
     } catch (error) {
       console.error('❌ Error en reconexión:', error);
@@ -278,7 +358,7 @@ const ConnectScreen: React.FC = () => {
         if (device && device.id === lastConnectedDeviceId) {
           bleManager.stopDeviceScan();
           clearTimeout(timeout);
-          
+
           try {
             await connectToKnownDevice(device);
             resolve();
@@ -293,7 +373,7 @@ const ConnectScreen: React.FC = () => {
   const subscribeToAlerts = async (device: Device): Promise<void> => {
     try {
       console.log('🔔 Suscribiendo a alertas...');
-      
+
       device.monitorCharacteristicForService(
         SERVICE_UUID,
         ALERT_CHAR_UUID,
@@ -302,13 +382,13 @@ const ConnectScreen: React.FC = () => {
             console.error('❌ Error monitoreando alertas:', error);
             return;
           }
-          
+
           if (characteristic?.value) {
             try {
               // Decodificar Base64
               const decodedValue = Buffer.from(characteristic.value, 'base64').toString('utf-8');
               console.log('📨 Mensaje recibido:', decodedValue);
-              
+
               // Verificar si es una alerta de emergencia
               if (decodedValue === "EMERGENCY_ALERT") {
                 console.log('🚨 Alerta de emergencia detectada!');
@@ -333,7 +413,7 @@ const ConnectScreen: React.FC = () => {
           }
         }
       );
-      
+
       console.log('✅ Suscrito a alertas');
     } catch (error) {
       console.error('❌ Error suscribiendo a alertas:', error);
@@ -343,7 +423,7 @@ const ConnectScreen: React.FC = () => {
   const subscribeToStatus = async (device: Device): Promise<void> => {
     try {
       console.log('📊 Suscribiendo a estado...');
-      
+
       device.monitorCharacteristicForService(
         SERVICE_UUID,
         STATUS_CHAR_UUID,
@@ -352,12 +432,12 @@ const ConnectScreen: React.FC = () => {
             console.error('❌ Error monitoreando estado:', error);
             return;
           }
-          
+
           if (characteristic?.value) {
             try {
               const decodedStatus = Buffer.from(characteristic.value, 'base64').toString('utf-8');
               console.log('📱 Estado recibido:', decodedStatus);
-              
+
               // Actualizar estado de conexión
               switch (decodedStatus) {
                 case 'connected':
@@ -379,7 +459,7 @@ const ConnectScreen: React.FC = () => {
           }
         }
       );
-      
+
       console.log('✅ Suscrito a estado');
     } catch (error) {
       console.error('❌ Error suscribiendo a estado:', error);
@@ -388,11 +468,11 @@ const ConnectScreen: React.FC = () => {
 
   const handleEmergencyAlert = (alertData?: AlertData): void => {
     console.log('🚨 Procesando alerta de emergencia');
-    
+
     // Obtener información actual
     const currentTime = new Date().toLocaleString();
     const deviceName = connectedDevice?.name || 'SmartWatch';
-    
+
     // Mostrar alerta principal
     Alert.alert(
       '🚨 ALERTA DE EMERGENCIA',
@@ -404,16 +484,16 @@ ${alertData ? `🔋 Batería: ${alertData.battery}%` : ''}
 
 ¿Estás bien?`,
       [
-        { 
-          text: 'Falsa alarma', 
+        {
+          text: 'Falsa alarma',
           style: 'cancel',
           onPress: () => {
             console.log('✅ Alerta cancelada por el usuario');
             Alert.alert('✅ Cancelado', 'Alerta marcada como falsa alarma');
           }
         },
-        { 
-          text: 'Necesito ayuda', 
+        {
+          text: 'Necesito ayuda',
           style: 'destructive',
           onPress: () => {
             console.log('🆘 Usuario confirmó emergencia');
@@ -428,13 +508,13 @@ ${alertData ? `🔋 Batería: ${alertData.battery}%` : ''}
   const processEmergency = (deviceName: string, timestamp: string): void => {
     // Aquí la app procesará la emergencia
     console.log('🚨 Procesando emergencia confirmada');
-    
+
     Alert.alert(
       '🆘 Emergencia Activada',
       `Protocolo de emergencia iniciado:
 
 📞 Notificando contactos de emergencia
-📍 Enviando ubicación actual  
+📍 Enviando ubicación actual
 🚨 Activando servicios de emergencia
 
 Dispositivo: ${deviceName}
@@ -462,7 +542,7 @@ En una versión completa, aquí se ejecutarían todas las acciones de emergencia
           connected: true
         }];
       }
-      return prev.map(d => 
+      return prev.map(d =>
         d.id === device.id ? { ...d, connected: true } : d
       );
     });
@@ -475,12 +555,12 @@ En una versión completa, aquí se ejecutarían todas las acciones de emergencia
         await connectedDevice.cancelConnection();
         setConnectedDevice(null);
         setConnectionStatus('Desconectado');
-        
+
         // Actualizar estado de dispositivos emparejados
-        setPairedDevices(prev => 
+        setPairedDevices(prev =>
           prev.map(d => ({ ...d, connected: false }))
         );
-        
+
         console.log('✅ Dispositivo desconectado');
       } catch (error) {
         console.error('❌ Error desconectando:', error);
@@ -489,7 +569,7 @@ En una versión completa, aquí se ejecutarían todas las acciones de emergencia
   };
 
   const renderAvailableDevice = ({ item }: { item: AvailableDevice }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.braceletCard}
       onPress={() => connectToDevice(item)}
     >
@@ -503,7 +583,7 @@ En una versión completa, aquí se ejecutarían todas las acciones de emergencia
   );
 
   const renderPairedDevice = ({ item }: { item: PairedDevice }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={[styles.braceletCard, item.connected && styles.connectedCard]}
       onPress={item.connected ? disconnectDevice : () => {}}
     >
@@ -514,10 +594,10 @@ En una versión completa, aquí se ejecutarían todas las acciones de emergencia
           {item.connected ? connectionStatus : 'Desconectado'}
         </Text>
       </View>
-      <Ionicons 
-        name={item.connected ? "checkmark-circle" : "settings-outline"} 
-        size={20} 
-        color={item.connected ? "#4CAF50" : "#444"} 
+      <Ionicons
+        name={item.connected ? "checkmark-circle" : "settings-outline"}
+        size={20}
+        color={item.connected ? "#4CAF50" : "#444"}
       />
     </TouchableOpacity>
   );
@@ -539,19 +619,19 @@ En una versión completa, aquí se ejecutarían todas las acciones de emergencia
 
       <View style={styles.headerRow}>
         <Text style={styles.sectionTitle}>Conecta tu pulsera</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
-            styles.bluetoothButton, 
+            styles.bluetoothButton,
             connectedDevice && styles.connectedButton,
             isScanning && styles.scanningButton
           ]}
           onPress={startScanning}
           disabled={isScanning}
         >
-          <Ionicons 
-            name={isScanning ? "sync" : connectedDevice ? "bluetooth" : "bluetooth-outline"} 
-            size={24} 
-            color="white" 
+          <Ionicons
+            name={isScanning ? "sync" : connectedDevice ? "bluetooth" : "bluetooth-outline"}
+            size={24}
+            color="white"
           />
         </TouchableOpacity>
       </View>
@@ -571,7 +651,7 @@ En una versión completa, aquí se ejecutarían todas las acciones de emergencia
           <Text style={styles.reconnectLabel}>
             Reconexión automática habilitada
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => setAutoReconnect(false)}
             style={styles.disableButton}
           >
@@ -594,6 +674,12 @@ En una versión completa, aquí se ejecutarían todas las acciones de emergencia
         <Text style={styles.debugText}>
           🕒 Última búsqueda: {isScanning ? 'En progreso...' : 'Completada'}
         </Text>
+        <TouchableOpacity
+          onPress={requestPermissions}
+          style={styles.permissionsButton}
+        >
+          <Text style={styles.permissionsButtonText}>🔐 Verificar permisos</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.sectionContainer}>
@@ -782,6 +868,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginBottom: 2,
+  },
+  permissionsButton: {
+    backgroundColor: '#6c4ee3',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  permissionsButtonText: {
+    fontSize: 12,
+    color: 'white',
+    fontWeight: '600',
   },
   sectionContainer: {
     marginBottom: 10,
