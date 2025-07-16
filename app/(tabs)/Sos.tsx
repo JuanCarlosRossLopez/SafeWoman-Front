@@ -1,5 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Animated,
+  Easing,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import Header from '@/layouts/Header';
 import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/services/firebase-config';
@@ -10,61 +17,85 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface RunningAnimation {
   animation: Animated.CompositeAnimation;
-  timerId: NodeJS.Timeout;
+  timerId: ReturnType<typeof setTimeout>;
 }
+
 
 const SOSScreen = () => {
   const numWaves = 2;
-  const waveAnimatedValues = useRef([...Array(numWaves)].map(() => new Animated.Value(0))).current;
+  const waveAnimatedValues = useRef(
+    [...Array(numWaves)].map(() => new Animated.Value(0))
+  ).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
   const { uid } = useUserStore();
+
   const [alertActive, setAlertActive] = useState(false);
-  const locationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const alertActiveRef = useRef(alertActive);
+  useEffect(() => {
+    alertActiveRef.current = alertActive;
+  }, [alertActive]);
+
+  const locationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalConfig, setModalConfig] = useState({
-    type: 'confirm',
+    type: 'confirm' as 'confirm' | 'success' | 'error',
     title: '',
     message: '',
     onConfirm: () => {},
-    onlyConfirm: true
+    onlyConfirm: true,
   });
 
-  const showModal = (type: 'confirm' | 'success' | 'error', title: string, message: string, onlyConfirm = true) => {
+  const showModal = (
+    type: 'confirm' | 'success' | 'error',
+    title: string,
+    message: string,
+    onlyConfirm = true
+  ) => {
     setModalConfig({
       type,
       title,
       message,
       onConfirm: () => setModalVisible(false),
-      onlyConfirm
+      onlyConfirm,
     });
     setModalVisible(true);
   };
 
   const updateLocation = async () => {
-    if (!alertActive) return;
+    if (!alertActiveRef.current) {
+      console.log('Alerta no activa, no actualizo ubicación');
+      return;
+    }
     try {
       const { status } = await Location.getForegroundPermissionsAsync();
       if (status !== 'granted') {
         const { status: newStatus } = await Location.requestForegroundPermissionsAsync();
         if (newStatus !== 'granted') {
-          showModal('error', 'Permiso denegado', 'No podemos actualizar tu ubicación sin permisos');
+          showModal(
+            'error',
+            'Permiso denegado',
+            'No podemos actualizar tu ubicación sin permisos'
+          );
           return;
         }
       }
 
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
-        timeInterval: 1000
+        timeInterval: 1000,
       });
 
       if (uid) {
         await updateDoc(doc(db, 'users', uid), {
           'location.latitude': location.coords.latitude,
           'location.longitude': location.coords.longitude,
-          'location.timestamp': new Date()
+          'location.timestamp': new Date(),
         });
       }
-    } catch (error) {}
+    } catch (error) {
+      console.error('Error al actualizar ubicación:', error);
+    }
   };
 
   const toggleAlert = async () => {
@@ -81,8 +112,8 @@ const SOSScreen = () => {
           updateLocation(),
           updateDoc(doc(db, 'users', uid), {
             alertaActiva: true,
-            createdAt: new Date()
-          })
+            createdAt: new Date(),
+          }),
         ]);
 
         if (locationIntervalRef.current) {
@@ -93,7 +124,7 @@ const SOSScreen = () => {
         showModal('success', 'Alerta activada', 'Tu ubicación se está compartiendo');
       } else {
         await updateDoc(doc(db, 'users', uid), {
-          alertaActiva: false
+          alertaActiva: false,
         });
 
         if (locationIntervalRef.current) {
@@ -111,7 +142,6 @@ const SOSScreen = () => {
     }
   };
 
-  // 🚨 Listener en tiempo real a Firebase
   useEffect(() => {
     if (!uid) return;
 
@@ -119,14 +149,13 @@ const SOSScreen = () => {
     const unsubscribe = onSnapshot(userDocRef, (docSnapshot) => {
       if (docSnapshot.exists()) {
         const data = docSnapshot.data();
-        setAlertActive(!!data.alertaActiva); // actualiza desde Firestore
+        setAlertActive(!!data.alertaActiva);
       }
     });
 
     return () => unsubscribe();
   }, [uid]);
 
-  // Animación de ondas
   useEffect(() => {
     const runningAnimations: RunningAnimation[] = [];
 
@@ -149,7 +178,7 @@ const SOSScreen = () => {
 
       runningAnimations.push({
         animation: individualAnimation,
-        timerId: setTimeout(() => individualAnimation.start(), index * 300)
+        timerId: setTimeout(() => individualAnimation.start(), index * 300),
       });
     });
 
@@ -165,12 +194,33 @@ const SOSScreen = () => {
     };
   }, [waveAnimatedValues]);
 
+  useEffect(() => {
+    if (alertActive) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(glowAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(glowAnim, {
+            toValue: 0,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      glowAnim.stopAnimation();
+    }
+  }, [alertActive]);
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, alertActive && styles.alertBackground]}>
       <Header />
       <View style={styles.sosButtonContainer}>
         <View style={styles.buttonAreaWrapper}>
-          {[...Array(numWaves).keys()].map(index => {
+          {[...Array(numWaves).keys()].map((index) => {
             const animValue = waveAnimatedValues[index];
             const scale = animValue.interpolate({
               inputRange: [0, 1],
@@ -189,39 +239,63 @@ const SOSScreen = () => {
                   {
                     transform: [{ scale }],
                     opacity,
-                    backgroundColor: alertActive ? '#df1d13ff' : '#B109C7',
+                    backgroundColor: alertActive ? '#ff4c4c' : '#B109C7',
                   },
                 ]}
               />
             );
           })}
+          {alertActive && (
+            <Animated.View
+              style={[
+                styles.glowEffect,
+                {
+                  opacity: glowAnim,
+                  transform: [
+                    {
+                      scale: glowAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [1.2, 1.8],
+                      }),
+                    },
+                  ],
+                },
+              ]}
+            />
+          )}
           <TouchableOpacity
             style={[
               styles.sosButton,
               alertActive && { backgroundColor: '#FF3A30' },
-              isProcessing && { opacity: 0.7 }
+              isProcessing && { opacity: 0.7 },
             ]}
             onPress={toggleAlert}
             disabled={isProcessing}
           >
             <Text style={styles.sosButtonText}>
-              {isProcessing ? '...' : (alertActive ? 'DESACTIVAR' : 'SOS')}
+              {isProcessing ? '...' : alertActive ? 'DESACTIVAR' : 'SOS'}
             </Text>
           </TouchableOpacity>
         </View>
       </View>
-      <Text style={[
-        styles.sosHelperText,
-        alertActive && { color: '#da1308ff', fontWeight: '700' }
-      ]}>
+      <Text
+        style={[
+          styles.sosHelperText,
+          alertActive && {
+            color: '#da1308ff',
+            fontWeight: 'bold',
+            fontSize: 18,
+          },
+        ]}
+      >
         {alertActive
-          ? 'Alerta activa - Ubicación compartiéndose'
+          ? '🚨 Alerta activa - Ubicación compartiéndose'
           : 'Presiona el botón para enviar una alerta'}
       </Text>
 
       <CustomModal
         visible={modalVisible}
-        type={modalConfig.type as any}
+        type={modalConfig.type}
         title={modalConfig.title}
         message={modalConfig.message}
         onConfirm={modalConfig.onConfirm}
@@ -237,6 +311,9 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     backgroundColor: '#fff',
+  },
+  alertBackground: {
+    backgroundColor: '#fcbbbbff',
   },
   sosButtonContainer: {
     flex: 1,
@@ -263,7 +340,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
-    zIndex: 1,
+    zIndex: 2,
   },
   sosButtonText: {
     color: 'white',
@@ -271,7 +348,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   sosHelperText: {
-    marginBottom: 30,
     fontSize: 16,
     color: 'black',
     textAlign: 'center',
@@ -282,6 +358,14 @@ const styles = StyleSheet.create({
     borderRadius: 75,
     position: 'absolute',
     zIndex: 0,
+  },
+  glowEffect: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: '#ff0000',
+    position: 'absolute',
+    zIndex: 1,
   },
 });
 
