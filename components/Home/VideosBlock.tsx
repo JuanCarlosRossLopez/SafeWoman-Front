@@ -37,7 +37,7 @@ export default function VideosBlock() {
 }
 
 const styles = StyleSheet.create({
-  contentSection: { marginTop: 30, marginBottom: 30, paddingHorizontal: 16 },
+  contentSection: { marginTop: 30, marginBottom: 15, paddingHorizontal: 16 },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",

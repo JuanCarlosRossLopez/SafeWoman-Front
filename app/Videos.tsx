@@ -1,6 +1,7 @@
 import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet } from "react-native";
 import CustomHeader from "@/components/CustomHeader";
 import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const videos = [
   { id: "1", title: "Técnicas de DEFENSA personal para MUJERES", url: "https://www.youtube.com/watch?v=BwAlO5UHgPA" },
@@ -24,12 +25,12 @@ export default function AllVideos() {
   const router = useRouter();
 
   return (
-    <View style={styles.container}>
-      <CustomHeader title="Videos educativos" />
-      <FlatList
+    <SafeAreaView style={styles.container}>
+      <CustomHeader title="Videos Educativos" />
+      <FlatList 
         data={videos}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={{ padding: 16, backgroundColor: "#FDF2FF" }}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.card}
@@ -41,12 +42,12 @@ export default function AllVideos() {
           </TouchableOpacity>
         )}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1,  backgroundColor: "#B109C7", },
   card: {
     marginBottom: 20,
     backgroundColor: "#FDF2FF",

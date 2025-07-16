@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Header from '@/layouts/Header';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/services/firebase-config';
 import { useUserStore } from '@/store/userStore';
 import * as Location from 'expo-location';
 import { CustomModal } from '@/components/ui/CustomModal';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface RunningAnimation {
   animation: Animated.CompositeAnimation;
@@ -40,7 +41,7 @@ const SOSScreen = () => {
   };
 
   const updateLocation = async () => {
-    if (!alertActive) return; 
+    if (!alertActive) return;
     try {
       const { status } = await Location.getForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -55,7 +56,7 @@ const SOSScreen = () => {
         accuracy: Location.Accuracy.High,
         timeInterval: 1000
       });
-      
+
       if (uid) {
         await updateDoc(doc(db, 'users', uid), {
           'location.latitude': location.coords.latitude,
@@ -63,44 +64,43 @@ const SOSScreen = () => {
           'location.timestamp': new Date()
         });
       }
-    } catch (error) {
-    }
+    } catch (error) {}
   };
 
   const toggleAlert = async () => {
     if (!uid || isProcessing) return;
-    
+
     setIsProcessing(true);
-    
+
     try {
       const newAlertState = !alertActive;
       setAlertActive(newAlertState);
-      
+
       if (newAlertState) {
         await Promise.all([
-          updateLocation(), 
+          updateLocation(),
           updateDoc(doc(db, 'users', uid), {
             alertaActiva: true,
             createdAt: new Date()
           })
         ]);
-        
+
         if (locationIntervalRef.current) {
           clearInterval(locationIntervalRef.current);
         }
         locationIntervalRef.current = setInterval(updateLocation, 15000);
-        
+
         showModal('success', 'Alerta activada', 'Tu ubicación se está compartiendo');
       } else {
         await updateDoc(doc(db, 'users', uid), {
           alertaActiva: false
         });
-        
+
         if (locationIntervalRef.current) {
           clearInterval(locationIntervalRef.current);
           locationIntervalRef.current = null;
         }
-        
+
         showModal('success', 'Alerta desactivada', 'Tu alerta SOS ha sido desactivada');
       }
     } catch (error) {
@@ -111,6 +111,22 @@ const SOSScreen = () => {
     }
   };
 
+  // 🚨 Listener en tiempo real a Firebase
+  useEffect(() => {
+    if (!uid) return;
+
+    const userDocRef = doc(db, 'users', uid);
+    const unsubscribe = onSnapshot(userDocRef, (docSnapshot) => {
+      if (docSnapshot.exists()) {
+        const data = docSnapshot.data();
+        setAlertActive(!!data.alertaActiva); // actualiza desde Firestore
+      }
+    });
+
+    return () => unsubscribe();
+  }, [uid]);
+
+  // Animación de ondas
   useEffect(() => {
     const runningAnimations: RunningAnimation[] = [];
 
@@ -119,7 +135,7 @@ const SOSScreen = () => {
         Animated.sequence([
           Animated.timing(animValue, {
             toValue: 1,
-            duration: 800, 
+            duration: 800,
             easing: Easing.out(Easing.ease),
             useNativeDriver: true,
           }),
@@ -131,9 +147,9 @@ const SOSScreen = () => {
         ])
       );
 
-      runningAnimations.push({ 
-        animation: individualAnimation, 
-        timerId: setTimeout(() => individualAnimation.start(), index * 300) 
+      runningAnimations.push({
+        animation: individualAnimation,
+        timerId: setTimeout(() => individualAnimation.start(), index * 300)
       });
     });
 
@@ -142,7 +158,7 @@ const SOSScreen = () => {
         clearTimeout(timerId);
         animation.stop();
       });
-      
+
       if (locationIntervalRef.current) {
         clearInterval(locationIntervalRef.current);
       }
@@ -150,19 +166,19 @@ const SOSScreen = () => {
   }, [waveAnimatedValues]);
 
   return (
-    <View style={styles.container}>
-      <Header/>
+    <SafeAreaView style={styles.container}>
+      <Header />
       <View style={styles.sosButtonContainer}>
         <View style={styles.buttonAreaWrapper}>
           {[...Array(numWaves).keys()].map(index => {
             const animValue = waveAnimatedValues[index];
             const scale = animValue.interpolate({
               inputRange: [0, 1],
-              outputRange: [1, 3.5], 
+              outputRange: [1, 3.5],
             });
             const opacity = animValue.interpolate({
               inputRange: [0, 1],
-              outputRange: [0.8, 0], 
+              outputRange: [0.8, 0],
             });
 
             return (
@@ -173,18 +189,18 @@ const SOSScreen = () => {
                   {
                     transform: [{ scale }],
                     opacity,
-                    backgroundColor: alertActive ? '#df1d13ff' : '#B109C7', 
+                    backgroundColor: alertActive ? '#df1d13ff' : '#B109C7',
                   },
                 ]}
               />
             );
           })}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
-              styles.sosButton, 
-              alertActive && { backgroundColor: '#FF3A30' }, 
+              styles.sosButton,
+              alertActive && { backgroundColor: '#FF3A30' },
               isProcessing && { opacity: 0.7 }
-            ]} 
+            ]}
             onPress={toggleAlert}
             disabled={isProcessing}
           >
@@ -198,11 +214,11 @@ const SOSScreen = () => {
         styles.sosHelperText,
         alertActive && { color: '#da1308ff', fontWeight: '700' }
       ]}>
-        {alertActive 
-          ? 'Alerta activa - Ubicación compartiéndose' 
+        {alertActive
+          ? 'Alerta activa - Ubicación compartiéndose'
           : 'Presiona el botón para enviar una alerta'}
       </Text>
-      
+
       <CustomModal
         visible={modalVisible}
         type={modalConfig.type as any}
@@ -212,7 +228,7 @@ const SOSScreen = () => {
         onlyConfirm={modalConfig.onlyConfirm}
         onAutoClose={() => setModalVisible(false)}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 

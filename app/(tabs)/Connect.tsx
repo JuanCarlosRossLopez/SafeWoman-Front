@@ -1,10 +1,11 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Header from '@/layouts/Header';
 
 export default function ConnectScreen() {
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
         <Header/>
       <View style={styles.headerRow}>
         <Text style={styles.sectionTitle}>Conecta tu pulsera</Text>
@@ -40,7 +41,7 @@ export default function ConnectScreen() {
       </View>
 
       <View style={styles.divider} />
-    </View>
+    </SafeAreaView>
   );
 }
 

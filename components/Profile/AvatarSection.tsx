@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
   },
   emailText: {
     fontSize: 14,
-    color: '#5b5452',
+    color: '#312e2eff',
     marginTop: 4,
   },
 });

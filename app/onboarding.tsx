@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { SafeAreaView, Animated, StyleSheet } from 'react-native';
+import {  Animated, StyleSheet } from 'react-native';
+import { SafeAreaView } from "react-native-safe-area-context";
 import Swiper from 'react-native-swiper';
 import Slide from '@/components/Slide';
 import AsyncStorage from '@react-native-async-storage/async-storage';

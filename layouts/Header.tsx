@@ -149,7 +149,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 20,
-    marginTop: 22,
     paddingHorizontal: 4,
   },
   leftHeader: {

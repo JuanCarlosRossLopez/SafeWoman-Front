@@ -7,10 +7,10 @@ import {
   LayoutAnimation,
   UIManager,
   Platform,
-  SafeAreaView,
   ScrollView,
   BackHandler,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useEffect, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
