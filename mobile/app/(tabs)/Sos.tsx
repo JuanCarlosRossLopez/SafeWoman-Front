@@ -99,48 +99,70 @@ const SOSScreen = () => {
   };
 
   const toggleAlert = async () => {
-    if (!uid || isProcessing) return;
+  if (!uid || isProcessing) return;
 
-    setIsProcessing(true);
+  setIsProcessing(true);
+  const newAlertState = !alertActive;
+  setAlertActive(newAlertState);
 
-    try {
-      const newAlertState = !alertActive;
-      setAlertActive(newAlertState);
-
-      if (newAlertState) {
-        await Promise.all([
-          updateLocation(),
-          updateDoc(doc(db, 'users', uid), {
-            alertaActiva: true,
-            createdAt: new Date(),
-          }),
-        ]);
-
-        if (locationIntervalRef.current) {
-          clearInterval(locationIntervalRef.current);
-        }
-        locationIntervalRef.current = setInterval(updateLocation, 15000);
-
-        showModal('success', 'Alerta activada', 'Tu ubicación se está compartiendo');
-      } else {
-        await updateDoc(doc(db, 'users', uid), {
-          alertaActiva: false,
-        });
-
-        if (locationIntervalRef.current) {
-          clearInterval(locationIntervalRef.current);
-          locationIntervalRef.current = null;
-        }
-
-        showModal('success', 'Alerta desactivada', 'Tu alerta SOS ha sido desactivada');
+  try {
+    if (newAlertState) {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      let finalStatus = status;
+      if (status !== 'granted') {
+        const { status: newStatus } = await Location.requestForegroundPermissionsAsync();
+        finalStatus = newStatus;
       }
-    } catch (error) {
-      setAlertActive(!alertActive);
-      showModal('error', 'Error', 'No se pudo actualizar el estado de alerta');
-    } finally {
-      setIsProcessing(false);
+
+      if (finalStatus !== 'granted') {
+        showModal(
+          'error',
+          'Permiso denegado',
+          'No podemos obtener tu ubicación sin permisos'
+        );
+        setAlertActive(false);
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+        timeInterval: 1000,
+      });
+
+      await updateDoc(doc(db, 'users', uid), {
+        alertaActiva: true,
+        createdAt: new Date(),
+        'location.latitude': location.coords.latitude,
+        'location.longitude': location.coords.longitude,
+        'location.timestamp': new Date(),
+      });
+
+      if (locationIntervalRef.current) {
+        clearInterval(locationIntervalRef.current);
+      }
+      locationIntervalRef.current = setInterval(updateLocation, 15000);
+
+      showModal('success', 'Alerta activada', 'Tu ubicación se está compartiendo');
+    } else {
+      await updateDoc(doc(db, 'users', uid), {
+        alertaActiva: false,
+      });
+
+      if (locationIntervalRef.current) {
+        clearInterval(locationIntervalRef.current);
+        locationIntervalRef.current = null;
+      }
+
+      showModal('success', 'Alerta desactivada', 'Tu alerta SOS ha sido desactivada');
     }
-  };
+  } catch (error) {
+    console.error('Error en toggleAlert:', error);
+    setAlertActive(!newAlertState); 
+    showModal('error', 'Error', 'No se pudo actualizar el estado de alerta');
+  } finally {
+    setIsProcessing(false);
+  }
+};
 
   useEffect(() => {
     if (!uid) return;
