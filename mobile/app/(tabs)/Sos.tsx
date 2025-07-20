@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import Header from '@/layouts/Header';
 import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
-import { db } from '@/services/firebase-config';
+import { auth, db } from '@/services/firebase-config';
 import { useUserStore } from '@/store/userStore';
 import * as Location from 'expo-location';
 import { CustomModal } from '@/components/ui/CustomModal';
@@ -42,7 +42,7 @@ const SOSScreen = () => {
     type: 'confirm' as 'confirm' | 'success' | 'error',
     title: '',
     message: '',
-    onConfirm: () => {},
+    onConfirm: () => { },
     onlyConfirm: true,
   });
 
@@ -99,70 +99,96 @@ const SOSScreen = () => {
   };
 
   const toggleAlert = async () => {
-  if (!uid || isProcessing) return;
+    if (!uid || isProcessing) return;
 
-  setIsProcessing(true);
-  const newAlertState = !alertActive;
-  setAlertActive(newAlertState);
+    setIsProcessing(true);
+    const newAlertState = !alertActive;
+    setAlertActive(newAlertState);
 
-  try {
-    if (newAlertState) {
-      const { status } = await Location.getForegroundPermissionsAsync();
-      let finalStatus = status;
-      if (status !== 'granted') {
-        const { status: newStatus } = await Location.requestForegroundPermissionsAsync();
-        finalStatus = newStatus;
+    try {
+      if (newAlertState) {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        let finalStatus = status;
+        if (status !== 'granted') {
+          const { status: newStatus } = await Location.requestForegroundPermissionsAsync();
+          finalStatus = newStatus;
+        }
+
+        if (finalStatus !== 'granted') {
+          showModal(
+            'error',
+            'Permiso denegado',
+            'No podemos obtener tu ubicación sin permisos'
+          );
+          setAlertActive(false);
+          return;
+        }
+
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+          timeInterval: 1000,
+        });
+
+        await updateDoc(doc(db, 'users', uid), {
+          alertaActiva: true,
+          createdAt: new Date(),
+          'location.latitude': location.coords.latitude,
+          'location.longitude': location.coords.longitude,
+          'location.timestamp': new Date(),
+        });
+
+        if (locationIntervalRef.current) {
+          clearInterval(locationIntervalRef.current);
+        }
+        locationIntervalRef.current = setInterval(updateLocation, 15000);
+        // --- Enviar alerta a backend para SMS ---
+        try {
+          const { emergencyContacts, name } = useUserStore.getState();
+          if (emergencyContacts && emergencyContacts.length > 0) {
+            const currentUser = auth.currentUser;
+            const idToken = currentUser ? await currentUser.getIdToken() : null;
+
+            await fetch('https://safewoman-api.vercel.app/api/sms-alert', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+              },
+              body: JSON.stringify({
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+                contacts: emergencyContacts,
+                name: name || undefined,
+              }),
+            });
+            console.log("Alerta enviada");
+          } else {
+            console.log('No se encontraron contactos de emergencia para enviar SMS');
+          }
+        } catch (apiErr) {
+          console.error('Error al enviar alerta SMS:', apiErr);
+        }
+        showModal('success', 'Alerta activada', 'Tu ubicación se está compartiendo');
+      } else {
+        await updateDoc(doc(db, 'users', uid), {
+          alertaActiva: false,
+        });
+
+        if (locationIntervalRef.current) {
+          clearInterval(locationIntervalRef.current);
+          locationIntervalRef.current = null;
+        }
+
+        showModal('success', 'Alerta desactivada', 'Tu alerta SOS ha sido desactivada');
       }
-
-      if (finalStatus !== 'granted') {
-        showModal(
-          'error',
-          'Permiso denegado',
-          'No podemos obtener tu ubicación sin permisos'
-        );
-        setAlertActive(false);
-        return;
-      }
-
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-        timeInterval: 1000,
-      });
-
-      await updateDoc(doc(db, 'users', uid), {
-        alertaActiva: true,
-        createdAt: new Date(),
-        'location.latitude': location.coords.latitude,
-        'location.longitude': location.coords.longitude,
-        'location.timestamp': new Date(),
-      });
-
-      if (locationIntervalRef.current) {
-        clearInterval(locationIntervalRef.current);
-      }
-      locationIntervalRef.current = setInterval(updateLocation, 15000);
-
-      showModal('success', 'Alerta activada', 'Tu ubicación se está compartiendo');
-    } else {
-      await updateDoc(doc(db, 'users', uid), {
-        alertaActiva: false,
-      });
-
-      if (locationIntervalRef.current) {
-        clearInterval(locationIntervalRef.current);
-        locationIntervalRef.current = null;
-      }
-
-      showModal('success', 'Alerta desactivada', 'Tu alerta SOS ha sido desactivada');
+    } catch (error) {
+      console.error('Error en toggleAlert:', error);
+      setAlertActive(!newAlertState);
+      showModal('error', 'Error', 'No se pudo actualizar el estado de alerta');
+    } finally {
+      setIsProcessing(false);
     }
-  } catch (error) {
-    console.error('Error en toggleAlert:', error);
-    setAlertActive(!newAlertState); 
-    showModal('error', 'Error', 'No se pudo actualizar el estado de alerta');
-  } finally {
-    setIsProcessing(false);
-  }
-};
+  };
 
   useEffect(() => {
     if (!uid) return;
