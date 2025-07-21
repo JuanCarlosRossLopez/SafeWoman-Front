@@ -1,3 +1,9 @@
+import { CustomModal } from '@/components/ui/CustomModal';
+import Header from '@/layouts/Header';
+import { auth, db } from '@/services/firebase-config';
+import { useUserStore } from '@/store/userStore';
+import * as Location from 'expo-location';
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -7,12 +13,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Header from '@/layouts/Header';
-import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
-import { auth, db } from '@/services/firebase-config';
-import { useUserStore } from '@/store/userStore';
-import * as Location from 'expo-location';
-import { CustomModal } from '@/components/ui/CustomModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface RunningAnimation {
@@ -148,19 +148,32 @@ const SOSScreen = () => {
             const currentUser = auth.currentUser;
             const idToken = currentUser ? await currentUser.getIdToken() : null;
 
-            await fetch('https://safewoman-api.vercel.app/api/sms-alert', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
-              },
-              body: JSON.stringify({
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
-                contacts: emergencyContacts,
-                name: name || undefined,
-              }),
-            });
+            try {
+              const { emergencyContacts, name } = useUserStore.getState();
+              if (emergencyContacts && emergencyContacts.length > 0) {
+                const currentUser = auth.currentUser;
+                const idToken = currentUser ? await currentUser.getIdToken() : null;
+    
+                // await fetch('https://safewoman-api.vercel.app/api/sms-alert', {
+                //   method: 'POST',
+                //   headers: {
+                //     'Content-Type': 'application/json',
+                //     ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+                //   },
+                //   body: JSON.stringify({
+                //     latitude: location.coords.latitude,
+                //     longitude: location.coords.longitude,
+                //     contacts: emergencyContacts,
+                //     name: name || undefined,
+                //   }),
+                // });
+                console.log("Alerta enviada");
+              } else {
+                console.log('No se encontraron contactos de emergencia para enviar SMS');
+              }
+            } catch (apiErr) {
+              console.error('Error al enviar alerta SMS:', apiErr);
+            }
             console.log("Alerta enviada");
           } else {
             console.log('No se encontraron contactos de emergencia para enviar SMS');

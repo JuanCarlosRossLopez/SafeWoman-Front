@@ -9,7 +9,10 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "pk.eyJ1Ijoiam9tYXJ1MDMiLCJhIjoiY21iM3lob3R0MHp2YzJyb2xpZGFrMnF6YyJ9.6v932iS1D9k2eh6D0EzYNw"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,8 +25,17 @@
         "BLUETOOTH_ADMIN",
         "BLUETOOTH_CONNECT",
         "BLUETOOTH_SCAN",
-        "ACCESS_FINE_LOCATION"
-      ]
+        "ACCESS_FINE_LOCATION",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT"
+      ],
+      "package": "com.anonymous.SafeWomanFront",
+      "config": {
+        "googleMaps": {
+          "apiKey": "pk.eyJ1Ijoiam9tYXJ1MDMiLCJhIjoiY21iM3lob3R0MHp2YzJyb2xpZGFrMnF6YyJ9.6v932iS1D9k2eh6D0EzYNw"
+        }
+      }
     },
     "web": {
       "bundler": "metro",
@@ -40,10 +52,28 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": true,
+          "restoreStateIdentifier": "safeWomanBle",
+          "restoreStateFunction": "bleRestoreState",
+          "modes": [
+            "central"
+          ],
+          "bluetoothAlwaysPermission": "SafeWoman necesita acceso a Bluetooth para conectarse con tu pulsera de emergencia."
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3bde326e-4028-442f-b30f-d5e9fa4a9218"
+      }
     }
   }
 }
