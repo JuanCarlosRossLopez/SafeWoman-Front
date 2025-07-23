@@ -174,7 +174,7 @@ const LiveMap = () => {
 
         {/* Alerts List */}
         <ScrollArea className="flex-1 h-[calc(100vh-280px)]">
-          <div className="p-4">
+          <div className="p-4 pb-18 md:pb-4">
             {loading ? (
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
