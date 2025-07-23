@@ -23,10 +23,13 @@ const alertIcon = new L.Icon({
   className: "animate-pulse drop-shadow-lg",
 })
 
+
 const LiveMap = () => {
   const [users, setUsers] = useState([])
   const [searchTerm, setSearchTerm] = useState("")
   const [loading, setLoading] = useState(true)
+  // Estado para mostrar/ocultar sidebar en móvil
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
     const usersRef = collection(db, "users")
@@ -79,9 +82,38 @@ const LiveMap = () => {
   }
 
   return (
-    <div className="flex h-screen w-full bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Enhanced Sidebar */}
-      <aside className="w-92 bg-white/95 backdrop-blur-sm shadow-2xl border-r border-slate-200">
+    <div className="flex h-screen w-full bg-gradient-to-br from-slate-50 to-slate-100 relative md:flex-row md:flex">
+      {/* Navbar SIEMPRE arriba en móvil, fuera del sidebar */}
+      <div className="md:hidden flex items-center justify-between px-4 py-3 bg-gradient-to-r from-red-50 to-orange-50 border-b border-slate-200 z-30 w-full fixed top-0 left-0">
+        <span className="font-bold text-lg text-black">SafeWoman</span>
+        <button
+          className="p-2 rounded-md border border-slate-200 bg-slate-50 shadow-sm focus:outline-none"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Abrir menú"
+        >
+          {/* Icono hamburguesa */}
+          <svg className="h-6 w-6 text-slate-700" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Sidebar: drawer en móvil, fijo en desktop */}
+      <aside
+        className={`
+          bg-white/95 backdrop-blur-sm shadow-2xl border-slate-200
+          w-80 md:w-92
+          fixed md:static top-0 left-0 h-full z-40
+          transition-transform duration-300
+          md:translate-x-0 md:border-r
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          md:translate-x-0 md:relative md:top-0 md:left-0 md:shadow-2xl md:block
+        `}
+        style={{
+          maxWidth: '92vw',
+          marginTop: undefined,
+        }}
+      >
         {/* Header */}
         <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-red-50 to-orange-50">
           <div className="flex items-center justify-between mb-4">
@@ -185,7 +217,7 @@ const LiveMap = () => {
                           </div>
                           <div>
                             <CardTitle className="text-lg text-slate-900">{user.name}</CardTitle>
-                            <p className="text-xs text-slate-500 flex items-center gap-1">
+                            <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
                               <Clock className="h-3 w-3" />
                               {formatTime(user.timestamp)}
                             </p>
@@ -230,15 +262,31 @@ const LiveMap = () => {
             )}
           </div>
         </ScrollArea>
+
       </aside>
 
+      {/* Overlay oscuro cuando sidebar está abierto en móvil */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-30 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        ></div>
+      )}
+
       {/* Enhanced Map */}
-      <main className="flex-1 relative">
+      <main
+        className={`flex-1 relative transition-all duration-300 ${sidebarOpen ? 'pointer-events-none blur-sm md:blur-0 md:pointer-events-auto' : ''}`}
+        style={{
+          minHeight: '300px',
+          marginTop: '56px', // para que el navbar no tape el mapa en móvil
+          ...(typeof window !== 'undefined' && window.innerWidth >= 768 ? { marginTop: 0 } : {}),
+        }}
+      >
         <MapContainer
           center={center}
           zoom={13}
-          className="h-full w-full z-0 rounded-l-xl shadow-inner"
-          style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)" }}
+          className="h-full w-full z-0 md:rounded-l-xl shadow-inner"
+          style={{ background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", minHeight: '300px' }}
         >
           <TileLayer
             attribution="&copy; OpenStreetMap contributors"
