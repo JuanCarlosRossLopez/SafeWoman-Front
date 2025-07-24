@@ -80,6 +80,7 @@ export default function Register() {
           longitude: null,
           timestamp: null,
         },
+        logged: false,
       });
 
       reset();

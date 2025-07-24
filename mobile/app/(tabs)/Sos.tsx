@@ -141,7 +141,18 @@ const SOSScreen = () => {
         clearInterval(locationIntervalRef.current);
       }
       locationIntervalRef.current = setInterval(updateLocation, 15000);
-
+      try {
+          await fetch("https://safewoman-api.vercel.app/api/sms-alert", {
+            method: "POST",
+            body: JSON.stringify({
+              userId: uid,
+            }),
+          });
+          console.log("Alerta enviada");
+        } catch (apiErr) {
+          console.error("Error al enviar alerta SMS:", apiErr);
+        }
+      }
       showModal('success', 'Alerta activada', 'Tu ubicación se está compartiendo');
     } else {
       await updateDoc(doc(db, 'users', uid), {

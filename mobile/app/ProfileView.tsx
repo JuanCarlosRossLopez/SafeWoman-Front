@@ -16,8 +16,9 @@ import { AvatarSection } from "@/components/Profile/AvatarSection";
 import { ProfileInfo } from "@/components/Profile/ProfileInfo";
 import { Ionicons } from "@expo/vector-icons";
 import { CustomModal } from "@/components/ui/CustomModal";
-import { auth } from "@/services/firebase-config";
+import { auth, db } from "@/services/firebase-config";
 import { signOut } from "firebase/auth";
+import { doc, updateDoc } from "firebase/firestore";
 
 const ProfileView = () => {
   const router = useRouter();
@@ -48,6 +49,13 @@ const ProfileView = () => {
   const handleLogout = async () => {
     setLoadingLogout(true);
     try {
+      // modificar el estado de logged a false en firebase
+      const user = auth.currentUser;
+      if (user) {
+        await updateDoc(doc(db, "users", user.uid), {
+          logged: false,
+        });
+      }
       await signOut(auth);
       clearUser();
       setShowLogoutModal(false);

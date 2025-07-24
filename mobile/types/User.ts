@@ -18,6 +18,7 @@ export interface UserData {
   emergencyContacts: EmergencyContact[];
   alertActive: boolean;
   lastLocation: Location;
+  logged: boolean;
 }
 
 export interface UserState extends UserData {
