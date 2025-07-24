@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { Link, Stack, useRouter } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import React, { useCallback, useState } from "react";
 import {
   Image,
@@ -59,6 +59,10 @@ export default function Login() {
 
       const userDoc = await getDoc(doc(db, "users", user.uid));
 
+      await updateDoc(doc(db, "users", user.uid), {
+        logged: true,
+      });
+
       if (userDoc.exists()) {
         const userData = userDoc.data();
         setUser({
@@ -66,6 +70,7 @@ export default function Login() {
           name: userData.name,
           email: userData.email,
           phone: userData.phone,
+          logged: true,
         });
       } else {
         setUser({

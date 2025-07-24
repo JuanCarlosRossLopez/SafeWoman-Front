@@ -152,7 +152,7 @@ const SOSScreen = () => {
         } catch (apiErr) {
           console.error("Error al enviar alerta SMS:", apiErr);
         }
-      }
+      
       showModal('success', 'Alerta activada', 'Tu ubicación se está compartiendo');
     } else {
       await updateDoc(doc(db, 'users', uid), {
