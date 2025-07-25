@@ -70,7 +70,8 @@ const SOSScreen = () => {
     try {
       const { status } = await Location.getForegroundPermissionsAsync();
       if (status !== 'granted') {
-        const { status: newStatus } = await Location.requestForegroundPermissionsAsync();
+        const { status: newStatus } =
+          await Location.requestForegroundPermissionsAsync();
         if (newStatus !== 'granted') {
           showModal(
             'error',
@@ -92,21 +93,18 @@ const SOSScreen = () => {
           'location.longitude': location.coords.longitude,
           'location.timestamp': new Date(),
         });
+        console.log('Ubicación actualizada');
       }
     } catch (error) {
       console.error('Error al actualizar ubicación:', error);
     }
   };
 
-  const toggleAlert = async () => {
-  if (!uid || isProcessing) return;
+  const handleActivateAlert = async () => {
+    if (!uid || isProcessing) return;
+    setIsProcessing(true);
 
-  setIsProcessing(true);
-  const newAlertState = !alertActive;
-  setAlertActive(newAlertState);
-
-  try {
-    if (newAlertState) {
+    try {
       const { status } = await Location.getForegroundPermissionsAsync();
       let finalStatus = status;
       if (status !== 'granted') {
@@ -120,7 +118,6 @@ const SOSScreen = () => {
           'Permiso denegado',
           'No podemos obtener tu ubicación sin permisos'
         );
-        setAlertActive(false);
         return;
       }
 
@@ -136,44 +133,38 @@ const SOSScreen = () => {
         'location.longitude': location.coords.longitude,
         'location.timestamp': new Date(),
       });
+      showModal(
+        'success',
+        'Alerta activada',
+        'Tu ubicación se está compartiendo'
+      );
+    } catch (error) {
+      console.error('Error en handleActivateAlert:', error);
+      showModal('error', 'Error', 'No se pudo activar la alerta');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
-      if (locationIntervalRef.current) {
-        clearInterval(locationIntervalRef.current);
-      }
-      locationIntervalRef.current = setInterval(updateLocation, 15000);
-      try {
-          await fetch("https://safewoman-api.vercel.app/api/sms-alert", {
-            method: "POST",
-            body: JSON.stringify({
-              userId: uid,
-            }),
-          });
-          console.log("Alerta enviada");
-        } catch (apiErr) {
-          console.error("Error al enviar alerta SMS:", apiErr);
-        }
-      
-      showModal('success', 'Alerta activada', 'Tu ubicación se está compartiendo');
-    } else {
+  const handleDeactivateAlert = async () => {
+    if (!uid || isProcessing) return;
+    setIsProcessing(true);
+    try {
       await updateDoc(doc(db, 'users', uid), {
         alertaActiva: false,
       });
-
-      if (locationIntervalRef.current) {
-        clearInterval(locationIntervalRef.current);
-        locationIntervalRef.current = null;
-      }
-
-      showModal('success', 'Alerta desactivada', 'Tu alerta SOS ha sido desactivada');
+      showModal(
+        'success',
+        'Alerta desactivada',
+        'Tu alerta SOS ha sido desactivada'
+      );
+    } catch (error) {
+      console.error('Error en handleDeactivateAlert:', error);
+      showModal('error', 'Error', 'No se pudo desactivar la alerta');
+    } finally {
+      setIsProcessing(false);
     }
-  } catch (error) {
-    console.error('Error en toggleAlert:', error);
-    setAlertActive(!newAlertState); 
-    showModal('error', 'Error', 'No se pudo actualizar el estado de alerta');
-  } finally {
-    setIsProcessing(false);
-  }
-};
+  };
 
   useEffect(() => {
     if (!uid) return;
@@ -182,7 +173,12 @@ const SOSScreen = () => {
     const unsubscribe = onSnapshot(userDocRef, (docSnapshot) => {
       if (docSnapshot.exists()) {
         const data = docSnapshot.data();
-        setAlertActive(!!data.alertaActiva);
+        const isActive = !!data.alertaActiva;
+
+        // Solo actualiza el estado si ha cambiado para evitar rerenders innecesarios
+        if (alertActiveRef.current !== isActive) {
+          setAlertActive(isActive);
+        }
       }
     });
 
@@ -190,7 +186,57 @@ const SOSScreen = () => {
   }, [uid]);
 
   useEffect(() => {
-    const runningAnimations: RunningAnimation[] = [];
+    const startAlertProcess = async () => {
+      if (!uid) return;
+      console.log('Iniciando proceso de alerta...');
+
+      // Iniciar actualizaciones de ubicación
+      await updateLocation(); // Actualizar una vez inmediatamente
+      if (locationIntervalRef.current) {
+        clearInterval(locationIntervalRef.current);
+      }
+      locationIntervalRef.current = setInterval(updateLocation, 15000);
+      console.log('Actualizaciones de ubicación iniciadas.');
+
+      // Enviar alerta SMS
+      try {
+        await fetch('https://safewoman-api.vercel.app/api/sms-alert', {
+          method: 'POST',
+          body: JSON.stringify({
+            userId: uid,
+          }),
+        });
+        console.log('Alerta SMS enviada');
+      } catch (apiErr) {
+        console.error('Error al enviar alerta SMS:', apiErr);
+      }
+    };
+
+    const stopAlertProcess = () => {
+      console.log('Deteniendo proceso de alerta...');
+      if (locationIntervalRef.current) {
+        clearInterval(locationIntervalRef.current);
+        locationIntervalRef.current = null;
+        console.log('Actualizaciones de ubicación detenidas.');
+      }
+    };
+
+    if (alertActive) {
+      startAlertProcess();
+    } else {
+      stopAlertProcess();
+    }
+
+    return () => {
+      stopAlertProcess(); // Limpieza al desmontar el componente
+    };
+  }, [alertActive, uid]);
+
+  useEffect(() => {
+    const runningAnimations: {
+      animation: Animated.CompositeAnimation;
+      timerId: ReturnType<typeof setTimeout>;
+    }[] = [];
 
     waveAnimatedValues.forEach((animValue, index) => {
       const individualAnimation = Animated.loop(
@@ -302,7 +348,7 @@ const SOSScreen = () => {
               alertActive && { backgroundColor: '#FF3A30' },
               isProcessing && { opacity: 0.7 },
             ]}
-            onPress={toggleAlert}
+            onPress={alertActive ? handleDeactivateAlert : handleActivateAlert}
             disabled={isProcessing}
           >
             <Text style={styles.sosButtonText}>
