@@ -103,69 +103,84 @@ export default function Login() {
 
   return (
     <>
-      <Stack.Screen options={{ title: "login" }} />
+      <Stack.Screen options={{ title: "login", headerShown: false }} />
       <SafeAreaView style={styles.section}>
         <View style={styles.container}>
-          <View>
-            <Image
-              source={require("@/assets/images/iconoSW.png")}
-              style={styles.safeLogo}
-            />
-            <Text style={styles.logoText}>Safewoman</Text>
+          {/* Decorative background elements */}
+          <View style={styles.backgroundDecoration1} />
+          <View style={styles.backgroundDecoration2} />
+          <View style={styles.backgroundDecoration3} />
+
+          <View style={styles.headerSection}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={require("@/assets/images/iconoSW.png")}
+                style={styles.safeLogo}
+              />
+              <Text style={styles.logoText}>SafeWoman</Text>
+            </View>
           </View>
 
-          <View style={{ marginTop: 30 }}>
-            <Text style={styles.textTitle}>Inicia sesión ahora</Text>
-            <Text style={styles.textDefault}>
+          <View style={styles.welcomeSection}>
+            <Text style={styles.textTitle}>¡Bienvenida de vuelta!</Text>
+            <Text style={styles.textSubtitle}>
               Da el primer paso hacia tu seguridad
             </Text>
+            <View style={styles.decorativeLine} />
           </View>
 
           <View style={styles.formContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Correo electrónico"
-              placeholderTextColor="gray"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={email}
-              onChangeText={setEmail}
-            />
-            <View style={{ position: "relative" }}>
+            <View style={styles.inputContainer}>
+              <Ionicons name="mail-outline" size={20} color="#B109C7" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
+                placeholder="Correo electrónico"
+                placeholderTextColor="#A0A0A0"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={20} color="#B109C7" style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { paddingRight: 50 }]}
                 placeholder="Contraseña"
-                placeholderTextColor="gray"
+                placeholderTextColor="#A0A0A0"
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
               />
               <TouchableOpacity
                 onPress={() => setShowPassword(!showPassword)}
-                style={{
-                  position: "absolute",
-                  right: 0,
-                  top: 10,
-                  padding: 3,
-                }}
+                style={styles.eyeIcon}
               >
                 <Ionicons
-                  name={showPassword ? "eye-off" : "eye"}
-                  size={20}
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={22}
                   color="#B109C7"
                 />
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.button} onPress={handleLogin}>
-              <Text style={styles.text}>Iniciar sesión</Text>
+            <TouchableOpacity style={styles.button} onPress={handleLogin} activeOpacity={0.8}>
+              <Text style={styles.buttonText}>Iniciar sesión</Text>
             </TouchableOpacity>
 
-            <View style={styles.textNavigate}>
+            <View style={styles.registerSection}>
               <Text style={styles.textQuestion}>¿No tienes cuenta?</Text>
               <Link href="/register" asChild>
-                <Text style={styles.textRegister}>Regístrate</Text>
+                <TouchableOpacity activeOpacity={0.7}>
+                  <Text style={styles.textRegister}>Regístrate aquí</Text>
+                </TouchableOpacity>
               </Link>
+            </View>
+
+            <View style={styles.securityNote}>
+              <Ionicons name="shield-checkmark" size={16} color="#B109C7" />
+              <Text style={styles.securityText}>Tus datos están protegidos con nosotras</Text>
             </View>
           </View>
         </View>
@@ -193,68 +208,193 @@ const styles = StyleSheet.create({
   section: {
     flex: 1,
     backgroundColor: "white",
+    position: 'relative',
+    overflow: 'hidden',
   },
   container: {
     flex: 1,
-    marginLeft: 40,
-    marginRight: 40,
-    justifyContent: "center",
+    marginLeft: 30,
+    marginRight: 30,
+    justifyContent: "space-between",
+    paddingTop: 40,
+    paddingBottom: 30,
+  },
+
+  // Background decorative elements
+  backgroundDecoration1: {
+    position: 'absolute',
+    top: -60,
+    right: -60,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(177, 9, 199, 0.05)',
+  },
+  backgroundDecoration2: {
+    position: 'absolute',
+    top: 200,
+    left: -40,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(177, 9, 199, 0.03)',
+  },
+  backgroundDecoration3: {
+    position: 'absolute',
+    bottom: 150,
+    right: -30,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(177, 9, 199, 0.04)',
+  },
+
+  // Header section
+  headerSection: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  logoContainer: {
+    alignItems: 'center',
   },
   safeLogo: {
-    alignSelf: "center",
-    width: 130,
-    height: 130,
+    width: 120,
+    height: 120,
+    shadowColor: '#B109C7',
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 8,
   },
   logoText: {
     textAlign: "center",
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 28,
+    fontWeight: "700",
     color: "#B109C7",
-    marginTop: 10,
+    marginTop: 15,
+    letterSpacing: 1.2,
+  },
+
+  // Welcome section
+  welcomeSection: {
+    alignItems: 'center',
+    marginVertical: 30,
   },
   textTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 26,
+    fontWeight: "700",
     color: "#28303F",
+    textAlign: 'center',
+    marginBottom: 8,
   },
-  textDefault: {
+  textSubtitle: {
     fontSize: 16,
-    color: "#5F5F5F",
-    marginTop: 8,
+    color: "#7A7A7A",
+    textAlign: 'center',
+    fontWeight: '400',
+  },
+  decorativeLine: {
+    width: 60,
+    height: 3,
+    backgroundColor: '#B109C7',
+    marginTop: 15,
+    borderRadius: 2,
+  },
+
+  // Form section
+  formContainer: {
+    marginTop: 20,
+    gap: 25,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: '#E8E8E8',
+    paddingBottom: 8,
+    position: 'relative',
+  },
+  inputIcon: {
+    marginRight: 12,
+    marginBottom: 2,
   },
   input: {
-    width: "100%",
-    height: 40,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ACA9A9",
+    flex: 1,
     fontSize: 16,
+    color: '#28303F',
+    paddingVertical: 8,
+    fontWeight: '500',
   },
-  formContainer: {
-    marginTop: 30,
-    gap: 30,
+  eyeIcon: {
+    position: 'absolute',
+    right: 0,
+    bottom: 8,
+    padding: 5,
   },
+
+  // Button section
   button: {
     backgroundColor: "#B109C7",
-    padding: 10,
-    borderRadius: 15,
+    paddingVertical: 18,
+    paddingHorizontal: 40,
+    borderRadius: 25,
     alignItems: "center",
+    marginTop: 15,
+    shadowColor: '#B109C7',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+    elevation: 10,
   },
-  text: {
+  buttonText: {
     color: "white",
-    fontWeight: "bold",
+    fontWeight: "700",
+    fontSize: 18,
+    letterSpacing: 0.5,
+  },
+
+  // Register section
+  registerSection: {
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+    alignItems: 'center',
+    marginTop: 20,
   },
   textQuestion: {
     fontSize: 16,
-    color: "#5F5F5F",
+    color: "#7A7A7A",
+    fontWeight: '400',
   },
   textRegister: {
     fontSize: 16,
     color: "#B109C7",
     fontWeight: "600",
+    textDecorationLine: 'underline',
   },
-  textNavigate: {
-    flexDirection: "row",
+
+  // Security note
+  securityNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(177, 9, 199, 0.08)',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    marginTop: 25,
     gap: 8,
-    justifyContent: "center",
+  },
+  securityText: {
+    color: '#B109C7',
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
