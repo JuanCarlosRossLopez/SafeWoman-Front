@@ -3,8 +3,9 @@ import {View,Text,Image,StyleSheet,TouchableOpacity,TouchableWithoutFeedback,Act
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useUserStore } from "@/store/userStore";
-import { auth } from "@/services/firebase-config";
+import { auth, db } from "@/services/firebase-config";
 import { signOut } from "firebase/auth";
+import { doc, updateDoc } from "firebase/firestore";
 import { CustomModal } from "@/components/ui/CustomModal";
 
 const Header = () => {
@@ -29,6 +30,13 @@ const Header = () => {
     try {
       setLoading(true);
       setShowLogoutModal(false);
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        await updateDoc(doc(db, "users", currentUser.uid), {
+          logged: false,
+        });
+      }
+      
       await signOut(auth);
       clearUser();
       setFeedbackModal({

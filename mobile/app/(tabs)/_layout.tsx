@@ -59,15 +59,6 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="Connect"
-        options={{
-          title: 'Conectar',
-          tabBarIcon: ({ focused, color }) => (
-            <TabBarIcon name={'watch-outline'} focused={focused} color={color} />
-          ),
-        }}
-      />
     </Tabs>
   );
 }
