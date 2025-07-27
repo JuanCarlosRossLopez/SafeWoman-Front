@@ -19,7 +19,6 @@ export default function Loading() {
   const textOpacity = useRef(new Animated.Value(0)).current;
   const bgAnim = useRef(new Animated.Value(0)).current;
   
-  // Nuevos efectos espectaculares para la entrada
   const splashScale = useRef(new Animated.Value(0)).current;
   const splashOpacity = useRef(new Animated.Value(0)).current;
   const ringScale1 = useRef(new Animated.Value(0)).current;
@@ -30,65 +29,58 @@ export default function Loading() {
   const [isAnimating, setIsAnimating] = useState(false);
   const [hasCheckedState, setHasCheckedState] = useState(false);
   const [showMainContent, setShowMainContent] = useState(false);
+  const [animationsComplete, setAnimationsComplete] = useState(false);
 
-  // Reset hasCheckedState cuando el usuario haga logout
   useEffect(() => {
     if (!logged && !uid) {
       setHasCheckedState(false);
+      setAnimationsComplete(false);
     }
   }, [logged, uid]);
 
   const goToScreen = useCallback(async (screen: string) => {
+    if (isAnimating) return; 
     setIsAnimating(true);
     Animated.timing(fadeAnim, {
       toValue: 0,
-      duration: 500,
+      duration: 300,
       useNativeDriver: true,
-    }).start(async () => {
-      router.replace(screen as any);
+    }).start(() => {
+      setTimeout(() => {
+        router.replace(screen as any);
+      }, 100);
     });
-  }, [fadeAnim, router]);
+  }, [fadeAnim, router, isAnimating]);
 
   const checkUserState = useCallback(async () => {
-    if (hasCheckedState) return; // Evitar múltiples ejecuciones
+    if (hasCheckedState || !animationsComplete) return; 
     
     try {
-      // Pequeño delay para asegurar que el store esté completamente hidratado
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
       setHasCheckedState(true);
-      
-      // Verificar si el usuario ya está logueado
       if (logged && uid) {
-        console.log("Usuario logueado detectado, navegando al home");
-        // Si ya está logueado, ir directamente al home
+        await new Promise(resolve => setTimeout(resolve, 1000));
         goToScreen("/(tabs)/home");
         return;
       }
 
       console.log("Usuario no logueado, verificando onboarding");
-      // Si no está logueado, verificar si ya vio el onboarding
       const hasSeenOnboarding = await AsyncStorage.getItem("hasSeenOnboarding");
       
       if (hasSeenOnboarding === "true") {
-        // Ya vio el onboarding, ir a introducción
+        await new Promise(resolve => setTimeout(resolve, 500));
         goToScreen("/introduction");
       } else {
-        // Primera vez, mostrar onboarding
+        await new Promise(resolve => setTimeout(resolve, 500));
         goToScreen("/onboarding");
       }
     } catch (error) {
       console.error("Error checking user state:", error);
-      // En caso de error, ir al onboarding
       goToScreen("/onboarding");
     }
-  }, [logged, uid, goToScreen, hasCheckedState]);
+  }, [logged, uid, goToScreen, hasCheckedState, animationsComplete]);
 
   useEffect(() => {
-    // 🎆 EFECTO ESPECTACULAR DE ENTRADA
-    // Fase 1: Explosión inicial con anillos expansivos
     Animated.sequence([
-      // Aparece la pantalla con una explosión
       Animated.parallel([
         Animated.timing(splashOpacity, {
           toValue: 1,
@@ -103,7 +95,6 @@ export default function Loading() {
         }),
       ]),
       
-      // Anillos expansivos secuenciales
       Animated.stagger(150, [
         Animated.timing(ringScale1, {
           toValue: 3,
@@ -125,12 +116,8 @@ export default function Loading() {
         }),
       ]),
     ]).start(() => {
-      // Fase 2: Transición al contenido principal
       setShowMainContent(true);
-      
-      // Animaciones principales con partículas
       Animated.parallel([
-        // Logo aparece con zoom
         Animated.timing(fadeAnim, {
           toValue: 1,
           duration: 800,
@@ -143,16 +130,18 @@ export default function Loading() {
           tension: 60,
           useNativeDriver: true,
         }),
-        // Partículas flotantes
         Animated.timing(particleOpacity, {
           toValue: 1,
           duration: 600,
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(() => {
+        setTimeout(() => {
+          setAnimationsComplete(true);
+        }, 1000); 
+      });
     });
 
-    // Animación del texto pulsante
     Animated.loop(
       Animated.sequence([
         Animated.timing(textOpacity, {
@@ -168,7 +157,6 @@ export default function Loading() {
       ])
     ).start();
 
-    // Fondo con gradiente animado
     Animated.loop(
       Animated.sequence([
         Animated.timing(bgAnim, {
@@ -183,19 +171,25 @@ export default function Loading() {
         }),
       ])
     ).start();
-  }, []);
+  }, [bgAnim, fadeAnim, particleOpacity, ringScale1, ringScale2, ringScale3, splashOpacity, splashScale, textOpacity, zoomAnim]);
+
+  useEffect(() => {
+    if (animationsComplete && !isAnimating && !hasCheckedState) {
+      checkUserState();
+    }
+  }, [checkUserState, isAnimating, hasCheckedState, animationsComplete]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      if (!isAnimating) {
-        checkUserState();
+      if (!hasCheckedState && !isAnimating) {
+        console.log("Timeout de seguridad activado");
+        setAnimationsComplete(true);
       }
-    }, 6000); // Aumenté a 6 segundos para dar más tiempo a la hidratación
+    }, 8000); 
 
     return () => clearTimeout(timeout);
-  }, [checkUserState, isAnimating]);
+  }, [hasCheckedState, isAnimating]);
 
-  // Efecto adicional para reaccionar a cambios en el estado del usuario
   useEffect(() => {
     if (logged && uid && !hasCheckedState && !isAnimating) {
       console.log("Estado del usuario cambió, re-evaluando navegación");
@@ -208,7 +202,6 @@ export default function Loading() {
     outputRange: ["#B109C7", "#8A049E"],
   });
 
-  // Crear múltiples partículas flotantes
   const renderParticles = () => {
     const particles = [];
     for (let i = 0; i < 8; i++) {
@@ -330,14 +323,12 @@ const AnimatedDot = ({ delay }: { delay: number }) => {
   );
 };
 
-// Componente de partículas flotantes espectaculares
 const FloatingParticle = ({ delay, opacity, index }: { delay: number; opacity: Animated.Value; index: number }) => {
   const translateY = useRef(new Animated.Value(0)).current;
   const rotate = useRef(new Animated.Value(0)).current;
   const particleScale = useRef(new Animated.Value(0.5)).current;
 
   useEffect(() => {
-    // Animación flotante
     Animated.loop(
       Animated.sequence([
         Animated.timing(translateY, {
@@ -355,7 +346,6 @@ const FloatingParticle = ({ delay, opacity, index }: { delay: number; opacity: A
       ])
     ).start();
 
-    // Rotación continua
     Animated.loop(
       Animated.timing(rotate, {
         toValue: 1,
@@ -365,7 +355,6 @@ const FloatingParticle = ({ delay, opacity, index }: { delay: number; opacity: A
       })
     ).start();
 
-    // Escala pulsante
     Animated.loop(
       Animated.sequence([
         Animated.timing(particleScale, {

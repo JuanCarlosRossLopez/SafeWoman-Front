@@ -201,7 +201,7 @@ export default function HomeScreen() {
                   ItemSeparatorComponent={() => <View style={styles.separator} />}
                 />
 
-                {emergencyContacts.length >= 2 && (
+                {emergencyContacts.length >= 1 && (
                   <TouchableOpacity
                     style={styles.viewAllButton}
                     onPress={() => router.push("/AllContacts")}
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
 
   // View all button
   viewAllButton: {
-    marginTop: 16,
+    marginTop: 6,
     alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
