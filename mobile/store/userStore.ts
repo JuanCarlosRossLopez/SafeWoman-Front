@@ -17,6 +17,7 @@ export const useUserStore = create<UserState>()(
         longitude: null,
         timestamp: null
       },
+      logged: false,
       setUser: (data) => set((state) => ({ ...state, ...data })),
       setEmergencyContacts: (contacts) => set({ emergencyContacts: contacts }),
       setAlertActive: (active) => set({ alertActive: active }),
@@ -38,7 +39,8 @@ export const useUserStore = create<UserState>()(
           latitude: null,
           longitude: null,
           timestamp: null
-        }
+        },
+        logged: false
       }),
     }),
     {
@@ -51,7 +53,8 @@ export const useUserStore = create<UserState>()(
         phone: state.phone,
         emergencyContacts: state.emergencyContacts,
         alertActive: state.alertActive,
-        lastLocation: state.lastLocation
+        lastLocation: state.lastLocation,
+        logged: state.logged
       }),
     }
   )
