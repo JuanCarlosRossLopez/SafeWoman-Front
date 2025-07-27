@@ -295,8 +295,36 @@ const SOSScreen = () => {
   }, [alertActive]);
 
   return (
-    <SafeAreaView style={[styles.container, alertActive && styles.alertBackground]}>
+    <SafeAreaView style={[styles.container, alertActive && styles.alertBackground]} edges={['top']}>
+      {/* Background decorative elements */}
+      <View style={styles.backgroundDecoration1} />
+      <View style={styles.backgroundDecoration2} />
+      <View style={styles.backgroundDecoration3} />
+      
       <Header />
+      
+      {/* Professional Info Card */}
+      <View style={styles.infoCard}>
+        <View style={styles.infoHeader}>
+          <View style={styles.infoIconContainer}>
+            <Text style={styles.infoIcon}>🚨</Text>
+          </View>
+          <View style={styles.infoContent}>
+            <Text style={styles.infoTitle}>Sistema de Emergencia SOS</Text>
+            <Text style={styles.infoSubtitle}>
+              {alertActive ? 'Alerta activada - Ayuda en camino' : 'Presiona cuando necesites ayuda urgente'}
+            </Text>
+          </View>
+        </View>
+        
+        {alertActive && (
+          <View style={styles.activeAlert}>
+            <View style={styles.pulsingDot} />
+            <Text style={styles.activeAlertText}>🚨 Ubicación compartiéndose en tiempo real</Text>
+          </View>
+        )}
+      </View>
+
       <View style={styles.sosButtonContainer}>
         <View style={styles.buttonAreaWrapper}>
           {[...Array(numWaves).keys()].map((index) => {
@@ -342,35 +370,59 @@ const SOSScreen = () => {
               ]}
             />
           )}
+          
+          {/* Enhanced SOS Button */}
           <TouchableOpacity
             style={[
               styles.sosButton,
-              alertActive && { backgroundColor: '#FF3A30' },
-              isProcessing && { opacity: 0.7 },
+              alertActive && styles.sosButtonActive,
+              isProcessing && styles.sosButtonProcessing,
             ]}
             onPress={alertActive ? handleDeactivateAlert : handleActivateAlert}
             disabled={isProcessing}
+            activeOpacity={0.8}
           >
-            <Text style={styles.sosButtonText}>
-              {isProcessing ? '...' : alertActive ? 'DESACTIVAR' : 'SOS'}
-            </Text>
+            <View style={styles.buttonContent}>
+              <Text style={[styles.sosButtonText, alertActive && styles.sosButtonTextActive]}>
+                {isProcessing ? '...' : alertActive ? 'DETENER' : 'SOS'}
+              </Text>
+              <Text style={[styles.sosButtonSubtext, alertActive && styles.sosButtonSubtextActive]}>
+                {isProcessing ? 'Procesando' : alertActive ? 'Toca para detener' : 'Emergencia'}
+              </Text>
+            </View>
           </TouchableOpacity>
         </View>
       </View>
-      <Text
-        style={[
-          styles.sosHelperText,
-          alertActive && {
-            color: '#da1308ff',
-            fontWeight: 'bold',
-            fontSize: 18,
-          },
-        ]}
-      >
-        {alertActive
-          ? '🚨 Alerta activa - Ubicación compartiéndose'
-          : 'Presiona el botón para enviar una alerta'}
-      </Text>
+
+      {/* Enhanced Helper Text */}
+      <View style={styles.helperContainer}>
+        <Text style={[styles.sosHelperText, alertActive && styles.sosHelperTextActive]}>
+          {alertActive
+            ? '⚠️ Alerta SOS Activa'
+            : '🛡️ Tu seguridad es nuestra prioridad'}
+        </Text>
+        <Text style={[styles.sosHelperSubtext, alertActive && styles.sosHelperSubtextActive]}>
+          {alertActive
+            ? 'Tus contactos de emergencia han sido notificados'
+            : 'Mantén presionado en caso de emergencia real'}
+        </Text>
+      </View>
+
+      {/* Safety Tips Card */}
+      {!alertActive && (
+        <View style={styles.tipsCard}>
+          <View style={styles.tipsHeader}>
+            <View style={styles.tipsIcon}>
+              <Text style={styles.tipsIconText}>💡</Text>
+            </View>
+            <Text style={styles.tipsTitle}>Consejos de Seguridad</Text>
+          </View>
+          <Text style={styles.tipsText}>
+            • Verifica tus contactos de emergencia{'\n'}
+            • Usa solo en situaciones reales de peligro
+          </Text>
+        </View>
+      )}
 
       <CustomModal
         visible={modalVisible}
@@ -388,60 +440,287 @@ const SOSScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F8FAFC',
     padding: 16,
-    backgroundColor: '#fff',
   },
   alertBackground: {
-    backgroundColor: '#fcbbbbff',
+    backgroundColor: '#FEF2F2',
   },
+
+  // Background decorative elements
+  backgroundDecoration1: {
+    position: 'absolute',
+    top: 80,
+    right: -30,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(177, 9, 199, 0.05)',
+  },
+  backgroundDecoration2: {
+    position: 'absolute',
+    top: 250,
+    left: -40,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(177, 9, 199, 0.03)',
+  },
+  backgroundDecoration3: {
+    position: 'absolute',
+    bottom: 150,
+    right: -20,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(177, 9, 199, 0.02)',
+  },
+
+  // Info Card
+  infoCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 4,
+    marginTop: 20,
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 12,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  
+  infoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  
+  infoIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(177, 9, 199, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
+  infoIcon: {
+    fontSize: 28,
+  },
+  
+  infoContent: {
+    flex: 1,
+  },
+  
+  infoTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  
+  infoSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+
+  // Active Alert
+  activeAlert: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  
+  pulsingDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#EF4444',
+  },
+  
+  activeAlertText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#DC2626',
+    flex: 1,
+  },
+
+  // SOS Button Container
   sosButtonContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    paddingVertical: 40,
   },
+  
   buttonAreaWrapper: {
-    width: 150,
-    height: 150,
+    width: 200,
+    height: 200,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
   },
+
   sosButton: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: '#B109C7',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    zIndex: 2,
-  },
-  sosButtonText: {
-    color: 'white',
-    fontSize: 25,
-    fontWeight: 'bold',
-  },
-  sosHelperText: {
-    fontSize: 16,
-    color: 'black',
-    textAlign: 'center',
-  },
-  pulseWave: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    position: 'absolute',
-    zIndex: 0,
-  },
-  glowEffect: {
     width: 180,
     height: 180,
     borderRadius: 90,
+    backgroundColor: '#B109C7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+    borderWidth: 6,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 15,
+  },
+  
+  sosButtonActive: {
+    backgroundColor: '#EF4444',
+    borderColor: '#FECACA',
+  },
+  
+  sosButtonProcessing: {
+    opacity: 0.8,
+  },
+
+  buttonContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  
+  sosButtonText: {
+    color: '#fff',
+    fontSize: 32,
+    fontWeight: '800',
+    letterSpacing: 2,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  
+  sosButtonTextActive: {
+    fontSize: 28,
+  },
+
+  sosButtonSubtext: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  
+  sosButtonSubtextActive: {
+    color: 'rgba(255,255,255,0.95)',
+  },
+
+  // Helper Text Container
+  helperContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    paddingVertical: 20,
+    gap: 8,
+  },
+  
+  sosHelperText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#374151',
+    textAlign: 'center',
+  },
+  
+  sosHelperTextActive: {
+    color: '#DC2626',
+    fontSize: 20,
+  },
+
+  sosHelperSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  
+  sosHelperSubtextActive: {
+    color: '#B91C1C',
+    fontWeight: '600',
+  },
+
+  // Tips Card
+  tipsCard: {
+    backgroundColor: '#EFF6FF',
+    marginHorizontal: 4,
+    marginBottom: 4,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  
+  tipsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  
+  tipsIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
+  tipsIconText: {
+    fontSize: 18,
+  },
+  
+  tipsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E40AF',
+  },
+  
+  tipsText: {
+    fontSize: 13,
+    color: '#3730A3',
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+
+  // Animations (mantener originales)
+  pulseWave: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    position: 'absolute',
+    zIndex: 0,
+  },
+  
+  glowEffect: {
+    width: 220,
+    height: 220,
+    borderRadius: 110,
     backgroundColor: '#ff0000',
     position: 'absolute',
     zIndex: 1,

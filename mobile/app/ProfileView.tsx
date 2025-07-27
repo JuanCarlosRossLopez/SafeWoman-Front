@@ -150,9 +150,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FDF2FF",
   },
-  scrollContent: {
-    paddingBottom: 40,
-  },
+
   logoutButton: {
     flexDirection: "row",
     alignItems: "center",

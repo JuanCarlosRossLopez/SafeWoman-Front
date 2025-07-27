@@ -42,9 +42,16 @@ export const CustomModal = ({
 
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const scaleAnim = React.useRef(new Animated.Value(0.8)).current;
+  const isMountedRef = React.useRef(true);
 
   React.useEffect(() => {
-    if (visible) {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (visible && isMountedRef.current) {
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -61,7 +68,7 @@ export const CustomModal = ({
 
       if (type === "success" || type === "error") {
         const timer = setTimeout(() => {
-          if (onAutoClose) {
+          if (onAutoClose && isMountedRef.current) {
             Animated.parallel([
               Animated.timing(fadeAnim, {
                 toValue: 0,
@@ -73,12 +80,16 @@ export const CustomModal = ({
                 duration: 200,
                 useNativeDriver: true,
               }),
-            ]).start(() => onAutoClose());
+            ]).start(() => {
+              if (isMountedRef.current && onAutoClose) {
+                onAutoClose();
+              }
+            });
           }
         }, 2500);
         return () => clearTimeout(timer);
       }
-    } else {
+    } else if (isMountedRef.current) {
       fadeAnim.setValue(0);
       scaleAnim.setValue(0.8);
     }
@@ -252,7 +263,7 @@ const styles = StyleSheet.create({
   confirmText: {
     color: "#fff",
     fontWeight: "700",
-    fontSize: 14,
+    fontSize: 13,
     letterSpacing: 0.2,
   },
   cancelButton: {
@@ -263,7 +274,7 @@ const styles = StyleSheet.create({
   cancelText: {
     color: "#374151",
     fontWeight: "600",
-    fontSize: 14,
+    fontSize: 13,
     letterSpacing: 0.2,
   },
   autoCloseIndicator: {
