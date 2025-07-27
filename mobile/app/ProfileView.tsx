@@ -67,7 +67,7 @@ const ProfileView = () => {
       });
       setTimeout(() => {
         setFeedbackModal((prev) => ({ ...prev, visible: false }));
-        router.replace("/login");
+        router.replace("/loading");
       }, 1000);
     } catch (error) {
       setFeedbackModal({

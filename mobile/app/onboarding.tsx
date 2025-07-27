@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {  Animated, StyleSheet } from 'react-native';
 import { SafeAreaView } from "react-native-safe-area-context";
 import Swiper from 'react-native-swiper';
@@ -8,23 +8,22 @@ import { useRouter } from 'expo-router';
 
 export default function Onboarding() {
   const router = useRouter();
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<any>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const [isAnimating, setIsAnimating] = useState(false);
 
-  const goToScreen = async (screen: string) => {
+  const goToScreen = useCallback(async (screen: string) => {
     setIsAnimating(true);
     Animated.timing(fadeAnim, {
       toValue: 0,
       duration: 500,
       useNativeDriver: true,
     }).start(async () => {
-      if (screen === '(tabs)') {
-        await AsyncStorage.setItem('hasSeenOnboarding', 'true');
-      }
-      router.replace(screen);
+      // Marcar que ya vio el onboarding antes de navegar
+      await AsyncStorage.setItem('hasSeenOnboarding', 'true');
+      router.replace(screen as any);
     });
-  };
+  }, [fadeAnim, router]);
 
   useEffect(() => {
     timeoutRef.current = setTimeout(() => {
@@ -34,7 +33,7 @@ export default function Onboarding() {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, []);
+  }, [goToScreen, isAnimating]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
